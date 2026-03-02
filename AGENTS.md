@@ -19,6 +19,21 @@ Pages use GOV.UK Frontend macros, typography, spacing tokens, and colour palette
 bespoke styling is only allowed when no pattern exists. Content follows the GOV.UK style guide and
 interactive states retain ≥ WCAG AA contrast.
 
+### IV. Unit Test Quality And Maintainability Standards
+
+Unit tests must remain clear, deterministic, and resistant to implementation-only refactors.
+For all non-trivial test changes, apply these mandatory standards:
+
+- Assert behavior and collaborator contracts at module boundaries (for example `toHaveBeenCalledWith(...)` for dependency calls).
+- Cover both happy paths and rejection/error paths for dependency-bound logic (`mockRejectedValue`, thrown error, or equivalent).
+- Use explicit negative-path assertions (error type/status/message); avoid broad `toThrow()` with no expectation.
+- Freeze time for time-sensitive logic (`jest.useFakeTimers().setSystemTime(...)`) and restore timer state during teardown.
+- Avoid coupling tests to framework/private internals (for example Express `_router.stack` indexes, middleware arity heuristics, private method access) unless no public seam exists and the reason is documented in the test.
+- Extract repeated large fixtures into typed builders/factories once duplication appears across scenarios.
+- Prefer high-signal assertions; avoid low-value checks such as `toBeDefined`, `expect.any(...)` stand-ins, or "was called" assertions without argument/outcome checks when stronger assertions are available.
+- For security-sensitive modules (session, OIDC, helmet, CSRF), assert the full security-relevant configuration contract, not a single field.
+- Keep tests focused: one behavior per test where practical, avoiding large omnibus cases that obscure failure diagnosis.
+
 ## Active Technologies
 
 - TypeScript on Node.js + Express 5, Nunjucks/express-nunjucks, govuk-frontend components, Plotly for charts, axios for API data fetch, Prisma for database integration.

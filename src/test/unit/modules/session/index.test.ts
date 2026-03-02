@@ -1,5 +1,20 @@
 import type { Application } from 'express';
 
+const expectSessionSecurityOptions = (sessionMiddleware: jest.Mock, store: unknown): void => {
+  expect(sessionMiddleware).toHaveBeenCalledWith({
+    name: 'app-cookie',
+    secret: 'secret',
+    resave: false,
+    saveUninitialized: false,
+    rolling: true,
+    store,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+    },
+  });
+};
+
 describe('AppSession module', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -50,7 +65,7 @@ describe('AppSession module', () => {
     expect(redisClient.connect).toHaveBeenCalled();
     expect(app.locals.appRedisClient).toBeDefined();
     expect(app.locals.redisConnectPromise).toBeDefined();
-    expect(sessionMiddleware).toHaveBeenCalledWith(expect.objectContaining({ store: { store: 'redis' } }));
+    expectSessionSecurityOptions(sessionMiddleware, { store: 'redis' });
     expect(app.use).toHaveBeenCalledWith('session-middleware');
   });
 
@@ -96,7 +111,7 @@ describe('AppSession module', () => {
     expect(redisClient.connect).toHaveBeenCalled();
     expect(app.locals.appRedisClient).toBeDefined();
     expect(app.locals.redisConnectPromise).toBeDefined();
-    expect(sessionMiddleware).toHaveBeenCalledWith(expect.objectContaining({ store: { store: 'redis' } }));
+    expectSessionSecurityOptions(sessionMiddleware, { store: 'redis' });
     expect(app.use).toHaveBeenCalledWith('session-middleware');
   });
 
@@ -128,7 +143,7 @@ describe('AppSession module', () => {
 
     expect(fileStoreFactory).toHaveBeenCalled();
     expect(fileStore).toHaveBeenCalledWith({ path: '/tmp' });
-    expect(sessionMiddleware).toHaveBeenCalledWith(expect.objectContaining({ store: { store: 'file' } }));
+    expectSessionSecurityOptions(sessionMiddleware, { store: 'file' });
     expect(app.use).toHaveBeenCalledWith('session-middleware');
   });
 });

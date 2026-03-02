@@ -1,14 +1,38 @@
 import type { Application, Request, Response } from 'express';
 
 type AuthOptions = {
+  issuerBaseURL: string;
   baseURL: string;
   clientID: string;
+  secret: string;
+  clientSecret: string;
+  authorizationParams: {
+    response_type: string;
+    scope: string;
+  };
   session: {
+    name: string;
     store: unknown;
     rollingDuration: number;
+    cookie: {
+      httpOnly: boolean;
+    };
     rolling: boolean;
   };
   afterCallback: (req: Request, res: Response, session: { id_token?: string }) => unknown;
+};
+
+const expectForbiddenHttpError = (action: () => unknown): void => {
+  let thrownError: unknown;
+
+  try {
+    action();
+  } catch (error) {
+    thrownError = error;
+  }
+
+  expect((thrownError as { constructor?: { name?: string } }).constructor?.name).toBe('HTTPError');
+  expect((thrownError as { status?: number }).status).toBe(403);
 };
 
 const buildOidc = (overrides: Record<string, unknown> = {}) => {
@@ -108,10 +132,16 @@ describe('OidcMiddleware', () => {
 
     const useMock = app.use as jest.Mock;
     const options = authOptions() as AuthOptions;
+    expect(options.issuerBaseURL).toBe('http://idam/o');
     expect(options.baseURL).toBe('http://wa');
     expect(options.clientID).toBe('client-id');
+    expect(options.secret).toBe('wa-reporting-frontend-session-secret');
+    expect(options.clientSecret).toBe('client-secret');
+    expect(options.authorizationParams.scope).toBe('openid profile');
+    expect(options.session.name).toBe('session-cookie');
     expect(options.session.store).toEqual({ store: 'redis' });
     expect(options.session.rollingDuration).toBe(60 * 60);
+    expect(options.session.cookie.httpOnly).toBe(true);
     expect(options.session.rolling).toBe(true);
     expect(useMock).toHaveBeenCalledTimes(2);
     expect(useMock).toHaveBeenNthCalledWith(1, 'auth-middleware');
@@ -131,17 +161,22 @@ describe('OidcMiddleware', () => {
   });
 
   it('falls back to file store when redis is not configured', () => {
-    const { OidcMiddleware, fileStore } = buildOidc({ 'secrets.wa.wa-reporting-redis-host': undefined });
+    const { OidcMiddleware, authOptions, fileStore } = buildOidc({
+      'secrets.wa.wa-reporting-redis-host': undefined,
+    });
     const app = { use: jest.fn(), locals: {} } as unknown as Application;
 
     const instance = new OidcMiddleware();
-    const store = instance.getSessionStore?.(app);
+    instance.enableFor(app);
 
-    expect(store).toEqual({ store: 'file' });
+    const options = authOptions() as AuthOptions;
+    expect(options.session.store).toEqual({ store: 'file' });
     expect(fileStore).toHaveBeenCalledWith({ path: '/tmp' });
   });
 
   it('afterCallback throws for missing token or non-200 response', () => {
+    expect.hasAssertions();
+
     const { OidcMiddleware, authOptions } = buildOidc();
     const app = { use: jest.fn(), locals: {} } as unknown as Application;
     const instance = new OidcMiddleware();
@@ -150,10 +185,10 @@ describe('OidcMiddleware', () => {
     const afterCallback = (authOptions() as AuthOptions).afterCallback;
 
     const res = { statusCode: 403 } as Response;
-    expect(() => afterCallback({} as Request, res, {})).toThrow();
+    expectForbiddenHttpError(() => afterCallback({} as Request, res, {}));
 
     const okRes = { statusCode: 200 } as Response;
-    expect(() => afterCallback({} as Request, okRes, {})).toThrow();
+    expectForbiddenHttpError(() => afterCallback({} as Request, okRes, {}));
   });
 
   it('afterCallback rethrows decode errors', () => {
@@ -175,6 +210,8 @@ describe('OidcMiddleware', () => {
   });
 
   it('afterCallback rejects when access role is missing', () => {
+    expect.hasAssertions();
+
     const { OidcMiddleware, jwtDecode, authOptions } = buildOidc();
     const app = { use: jest.fn(), locals: {} } as unknown as Application;
     const instance = new OidcMiddleware();
@@ -187,7 +224,7 @@ describe('OidcMiddleware', () => {
     const res = { statusCode: 200 } as Response;
     const session = { id_token: 'token' };
 
-    expect(() => afterCallback({} as Request, res, session)).toThrow();
+    expectForbiddenHttpError(() => afterCallback({} as Request, res, session));
   });
 
   it('afterCallback returns enriched session for valid users', () => {
@@ -211,6 +248,8 @@ describe('OidcMiddleware', () => {
   });
 
   it('rejects unauthenticated or unauthorized requests in the guard', () => {
+    expect.hasAssertions();
+
     const { OidcMiddleware } = buildOidc();
     const app = { use: jest.fn(), locals: {} } as unknown as Application;
     const instance = new OidcMiddleware();
@@ -219,10 +258,10 @@ describe('OidcMiddleware', () => {
     const guard = (app.use as jest.Mock).mock.calls[1][0] as (req: Request, res: Response, next: () => void) => void;
 
     const unauthenticatedReq = { oidc: { isAuthenticated: () => false, user: { roles: ['role-access'] } } } as Request;
-    expect(() => guard(unauthenticatedReq, {} as Response, jest.fn())).toThrow();
+    expectForbiddenHttpError(() => guard(unauthenticatedReq, {} as Response, jest.fn()));
 
     const unauthorizedReq = { oidc: { isAuthenticated: () => true, user: { roles: ['role-other'] } } } as Request;
-    expect(() => guard(unauthorizedReq, {} as Response, jest.fn())).toThrow();
+    expectForbiddenHttpError(() => guard(unauthorizedReq, {} as Response, jest.fn()));
   });
 
   it('allows authenticated requests with the access role in the guard', () => {

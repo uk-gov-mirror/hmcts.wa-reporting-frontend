@@ -52,13 +52,24 @@ describe('createAnalyticsRouter', () => {
   test('sets csrf token in locals middleware', () => {
     const router = createAnalyticsRouter();
     const middlewareLayers = (router as Router & { stack: RouterLayer[] }).stack.filter(layer => !layer.route);
-    const localsHandler = middlewareLayers[1].handle;
     const req = {} as unknown as Request;
-    const res = { locals: {} } as unknown as Response;
     csrfServiceMock.getToken.mockReturnValue('token');
+    const localsLayer = middlewareLayers.find(layer => {
+      const probeRes = { locals: {} } as unknown as Response;
+      csrfServiceMock.getToken.mockClear();
+      layer.handle(req, probeRes, jest.fn());
+      return csrfServiceMock.getToken.mock.calls.length > 0;
+    });
 
-    localsHandler(req, res, jest.fn());
+    expect(localsLayer).toBeDefined();
 
+    const res = { locals: {} } as unknown as Response;
+    const next = jest.fn();
+
+    localsLayer?.handle(req, res, next);
+
+    expect(csrfServiceMock.getToken).toHaveBeenCalledWith(req, res);
     expect(res.locals.csrfToken).toBe('token');
+    expect(next).toHaveBeenCalled();
   });
 });

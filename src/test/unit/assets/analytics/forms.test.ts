@@ -24,8 +24,7 @@ describe('analytics forms', () => {
     setupAnalyticsDom();
   });
 
-  test('persists and restores scroll position', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  test('stores scroll position and restores it once', () => {
     storeScrollPosition();
 
     const key = getScrollStorageKey();
@@ -36,22 +35,39 @@ describe('analytics forms', () => {
     expect(window.sessionStorage.getItem(key)).toBeNull();
 
     restoreScrollPosition();
-    expect((window.scrollTo as jest.Mock).mock.calls).toHaveLength(1);
+    expect(window.scrollTo).toHaveBeenCalledTimes(1);
+  });
 
+  test('does not scroll when stored scroll position is invalid', () => {
+    const key = getScrollStorageKey();
     window.sessionStorage.setItem(key, 'not-a-number');
-    restoreScrollPosition();
-    expect((window.scrollTo as jest.Mock).mock.calls).toHaveLength(1);
 
-    const setItemSpy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('blocked');
-    });
-    storeScrollPosition();
-    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('blocked');
-    });
     restoreScrollPosition();
-    expect(warnSpy).toHaveBeenCalled();
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(window.sessionStorage.getItem(key)).toBeNull();
+  });
+
+  test('warns when scroll position storage operations fail', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const storeError = new Error('blocked-store');
+    const setItemSpy = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw storeError;
+    });
+
+    storeScrollPosition();
+    expect(warnSpy).toHaveBeenCalledWith('Failed to store scroll position', storeError);
     setItemSpy.mockRestore();
+
+    const restoreError = new Error('blocked-restore');
+    const getItemSpy = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw restoreError;
+    });
+
+    restoreScrollPosition();
+    expect(warnSpy).toHaveBeenCalledWith('Failed to restore scroll position', restoreError);
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+
     getItemSpy.mockRestore();
     warnSpy.mockRestore();
   });

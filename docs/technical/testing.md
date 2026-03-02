@@ -36,6 +36,35 @@
 ## Coverage targets
 - Project guidelines require at least 95% branch and line coverage on modified files.
 
+## Unit test quality checklist
+- Name tests as clear behavior statements (condition and expected outcome).
+- Keep tests deterministic: avoid runtime clock/random/network dependencies unless explicitly controlled.
+- Structure tests as Arrange/Act/Assert and keep each test focused on one primary behavior.
+- Assert observable behavior and dependency contracts, not only implementation internals.
+- For dependency-bound logic, include rejection/error-path tests alongside success-path tests.
+- Prefer precise assertions over broad ones (for example explicit error/status checks instead of bare `toThrow()`).
+- Use typed fixture builders/factories for repeated complex objects to reduce duplication and improve readability.
+- Restore global state in teardown (`process.env`, timers, DOM globals, spies, and module caches where relevant).
+
+## Assertion quality patterns
+- Prefer `toHaveBeenCalledWith(...)` or `toHaveBeenNthCalledWith(...)` when call parameters/order are part of behavior.
+- Avoid low-signal assertions (`toBeDefined`, `expect.any(...)` placeholders, or "was called" only checks) when stronger checks are possible.
+- Prefer semantic assertions on returned structures over brittle serialization checks (for example exact JSON string equality).
+- Prefer parsing URL/query outputs (`URL`/`URLSearchParams`) over substring assertions for pagination/filter links.
+
+## Maintainability patterns
+- Split large omnibus tests into focused cases to reduce failure blast radius and improve diagnostics.
+- Consolidate duplicate coverage ownership so one suite is the source of truth for a module's behavior.
+- Replace repeated inline fixtures with shared builders once the same shape appears in multiple tests.
+- Avoid coupling to framework-private internals (such as Express stack index positions) unless no public seam exists.
+- Freeze time in date-sensitive tests with `jest.useFakeTimers().setSystemTime(...)` and reset in teardown.
+
+## Security-sensitive unit tests
+- Session tests should assert security-relevant options, including cookie flags and session behavior fields.
+- OIDC tests should assert explicit authorization failure semantics (error type/status/message), not only generic throws.
+- Helmet tests should cover a stable set of CSP and related directives beyond a single script directive.
+- CSRF tests should assert both token generation and validation wiring for enabled/default states.
+
 ## Mutation testing
 - Mutation testing runs with StrykerJS against Jest unit tests (`jest.config.js`).
 - Local command: `yarn test:mutation`.

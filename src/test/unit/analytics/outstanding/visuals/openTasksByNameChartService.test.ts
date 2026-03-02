@@ -37,4 +37,13 @@ describe('openTasksByNameChartService', () => {
       low: 0,
     });
   });
+
+  test('propagates repository errors', async () => {
+    const filters = { service: ['Service A'] };
+    const error = new Error('db error');
+    (taskFactsRepository.fetchOpenTasksByNameRows as jest.Mock).mockRejectedValue(error);
+
+    await expect(openTasksByNameChartService.fetchOpenTasksByName(snapshotId, filters)).rejects.toBe(error);
+    expect(taskFactsRepository.fetchOpenTasksByNameRows).toHaveBeenCalledWith(snapshotId, filters);
+  });
 });

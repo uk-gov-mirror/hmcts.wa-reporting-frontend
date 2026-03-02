@@ -30,6 +30,10 @@ describe('pageUtils', () => {
     jest.clearAllMocks();
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   test('fetchFilterOptionsWithFallback returns data when service succeeds', async () => {
     (filterService.fetchFilterOptions as jest.Mock).mockResolvedValue({
       services: ['A'],
@@ -193,17 +197,21 @@ describe('pageUtils', () => {
   });
 
   test('resolveDateRangeWithDefaults returns a 30-day window by default', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-01-15T12:00:00.000Z'));
+
     const { from, to } = resolveDateRangeWithDefaults({});
 
-    const diffDays = Math.round((to.getTime() - from.getTime()) / 86400000);
-    expect(diffDays).toBe(30);
+    expect(from).toEqual(new Date(2025, 11, 16));
+    expect(to).toEqual(new Date(2026, 0, 15));
   });
 
   test('resolveDateRangeWithDefaults uses custom daysBack values', () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-01-15T12:00:00.000Z'));
+
     const { from, to } = resolveDateRangeWithDefaults({ daysBack: 7 });
 
-    const diffDays = Math.round((to.getTime() - from.getTime()) / 86400000);
-    expect(diffDays).toBe(7);
+    expect(from).toEqual(new Date(2026, 0, 8));
+    expect(to).toEqual(new Date(2026, 0, 15));
   });
 
   test('resolveDateRangeWithDefaults swaps inverted ranges', () => {

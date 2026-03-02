@@ -1,6 +1,7 @@
 import path from 'path';
 
 import type { Express, Request, Response } from 'express';
+import request from 'supertest';
 const buildAppModule = async (options: {
   env?: string;
   authEnabled?: boolean;
@@ -196,15 +197,6 @@ const getNotFoundHandler = (app: Express) => {
   return stack[errorIndex - 1].handle as (req: Request, res: Response) => unknown;
 };
 
-const getCacheControlHandler = (app: Express) => {
-  const stack = resolveRouterStack(app);
-  return stack.find(layer => layer.handle && layer.handle.toString().includes('Cache-Control'))?.handle as (
-    req: Request,
-    res: Response,
-    next: () => void
-  ) => unknown;
-};
-
 describe('app bootstrap', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -319,7 +311,11 @@ describe('app bootstrap', () => {
 
   it('registers routes from glob and enables cache-control headers', async () => {
     const fakeRoutePath = path.join(process.cwd(), 'src/main/routes/__fake__.ts');
-    const routeHandler = jest.fn();
+    const routeHandler = jest.fn((expressApp: Express) => {
+      expressApp.get('/__cache-control-check__', (_req: Request, res: Response) => {
+        res.status(200).send('ok');
+      });
+    });
     const { app, healthRoute, infoRoute, oidcEnableFor } = await buildAppModule({
       env: 'development',
       routePaths: [fakeRoutePath],
@@ -329,14 +325,10 @@ describe('app bootstrap', () => {
     expect(routeHandler).toHaveBeenCalledWith(app);
     expect(healthRoute.mock.invocationCallOrder[0]).toBeLessThan(oidcEnableFor.mock.invocationCallOrder[0]);
     expect(infoRoute.mock.invocationCallOrder[0]).toBeLessThan(oidcEnableFor.mock.invocationCallOrder[0]);
-
-    const handler = getCacheControlHandler(app);
-    const setHeader = jest.fn();
-    const next = jest.fn();
-    handler({} as Request, { setHeader } as unknown as Response, next);
-
-    expect(setHeader).toHaveBeenCalledWith('Cache-Control', 'no-cache, max-age=0, must-revalidate, no-store');
-    expect(next).toHaveBeenCalled();
+    await request(app)
+      .get('/__cache-control-check__')
+      .expect(200)
+      .expect('Cache-Control', 'no-cache, max-age=0, must-revalidate, no-store');
   });
 
   it('renders not found for unmatched routes', async () => {

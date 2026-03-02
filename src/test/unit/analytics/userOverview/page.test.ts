@@ -53,6 +53,31 @@ jest.mock('../../../../main/modules/analytics/completed/visuals/completedComplia
 describe('buildUserOverviewPage', () => {
   const snapshotId = 104;
   const userOverviewQueryOptions = { excludeRoleCategories: ['Judicial'] };
+  const buildDefaultUserOverviewAggregate = () => ({
+    assigned: [],
+    completed: [],
+    prioritySummary: { urgent: 0, high: 0, medium: 0, low: 0 },
+    completedSummary: { total: 0, withinDueYes: 0, withinDueNo: 0 },
+    completedByDate: [],
+  });
+  const mockDefaultUserOverviewAggregate = () => {
+    (userOverviewService.buildUserOverview as jest.Mock).mockReturnValue(buildDefaultUserOverviewAggregate());
+  };
+  const buildDefaultUserOverviewFilterState = () => ({
+    filters: {},
+    filterOptions: {
+      services: [],
+      roleCategories: [],
+      regions: [],
+      locations: [],
+      taskNames: [],
+      workTypes: [],
+      users: [],
+    },
+  });
+  const mockDefaultUserOverviewFilterState = () => {
+    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue(buildDefaultUserOverviewFilterState());
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -107,13 +132,7 @@ describe('buildUserOverviewPage', () => {
     ];
     (taskThinRepository.fetchUserOverviewAssignedTaskCount as jest.Mock).mockResolvedValue(2);
     (taskThinRepository.fetchUserOverviewAssignedTaskRows as jest.Mock).mockResolvedValue(assignedRows);
-    (userOverviewService.buildUserOverview as jest.Mock).mockReturnValue({
-      assigned: [],
-      completed: [],
-      prioritySummary: { urgent: 0, high: 0, medium: 0, low: 0 },
-      completedSummary: { total: 0, withinDueYes: 0, withinDueNo: 0 },
-      completedByDate: [],
-    });
+    mockDefaultUserOverviewAggregate();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({ Leeds: 'Leeds Crown Court' });
     (caseWorkerProfileService.fetchCaseWorkerProfileNames as jest.Mock).mockResolvedValue({
       'user-1': 'Sam Taylor',
@@ -179,18 +198,7 @@ describe('buildUserOverviewPage', () => {
   test('builds the full page view model with deferred sections', async () => {
     const sort = getDefaultUserOverviewSort();
 
-    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      filters: {},
-      filterOptions: {
-        services: [],
-        roleCategories: [],
-        regions: [],
-        locations: [],
-        taskNames: [],
-        workTypes: [],
-        users: [],
-      },
-    });
+    mockDefaultUserOverviewFilterState();
     (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview-full' });
 
     const viewModel = await buildUserOverviewPage({ user: ['user-1'] }, sort);
@@ -213,18 +221,7 @@ describe('buildUserOverviewPage', () => {
 
   test('treats unknown ajax sections as full-page requests', async () => {
     const sort = getDefaultUserOverviewSort();
-    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      filters: {},
-      filterOptions: {
-        services: [],
-        roleCategories: [],
-        regions: [],
-        locations: [],
-        taskNames: [],
-        workTypes: [],
-        users: [],
-      },
-    });
+    mockDefaultUserOverviewFilterState();
     (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview-unknown' });
 
     const viewModel = await buildUserOverviewPage({}, sort, 1, 1, 'unknown-section');
@@ -245,13 +242,7 @@ describe('buildUserOverviewPage', () => {
     const sort = getDefaultUserOverviewSort();
     (taskThinRepository.fetchUserOverviewAssignedTaskCount as jest.Mock).mockResolvedValue(1);
     (taskThinRepository.fetchUserOverviewAssignedTaskRows as jest.Mock).mockResolvedValue([]);
-    (userOverviewService.buildUserOverview as jest.Mock).mockReturnValue({
-      assigned: [],
-      completed: [],
-      prioritySummary: { urgent: 0, high: 0, medium: 0, low: 0 },
-      completedSummary: { total: 0, withinDueYes: 0, withinDueNo: 0 },
-      completedByDate: [],
-    });
+    mockDefaultUserOverviewAggregate();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({});
     (caseWorkerProfileService.fetchCaseWorkerProfileNames as jest.Mock).mockResolvedValue({});
     (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview-assigned-alias' });
@@ -304,13 +295,7 @@ describe('buildUserOverviewPage', () => {
       total: 1,
       within: 1,
     });
-    (userOverviewService.buildUserOverview as jest.Mock).mockReturnValue({
-      assigned: [],
-      completed: [],
-      prioritySummary: { urgent: 0, high: 0, medium: 0, low: 0 },
-      completedSummary: { total: 0, withinDueYes: 0, withinDueNo: 0 },
-      completedByDate: [],
-    });
+    mockDefaultUserOverviewAggregate();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({});
     (caseWorkerProfileService.fetchCaseWorkerProfileNames as jest.Mock).mockResolvedValue({
       'user-1': 'Sam Taylor',
@@ -354,13 +339,7 @@ describe('buildUserOverviewPage', () => {
     const sort = getDefaultUserOverviewSort();
     (taskThinRepository.fetchUserOverviewAssignedTaskCount as jest.Mock).mockResolvedValue(20000);
     (taskThinRepository.fetchUserOverviewAssignedTaskRows as jest.Mock).mockResolvedValue([]);
-    (userOverviewService.buildUserOverview as jest.Mock).mockReturnValue({
-      assigned: [],
-      completed: [],
-      prioritySummary: { urgent: 0, high: 0, medium: 0, low: 0 },
-      completedSummary: { total: 0, withinDueYes: 0, withinDueNo: 0 },
-      completedByDate: [],
-    });
+    mockDefaultUserOverviewAggregate();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({});
     (caseWorkerProfileService.fetchCaseWorkerProfileNames as jest.Mock).mockResolvedValue({});
     (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview-clamped' });
@@ -412,25 +391,8 @@ describe('buildUserOverviewPage', () => {
     (taskThinRepository.fetchUserOverviewCompletedTaskRows as jest.Mock).mockResolvedValue([]);
     (taskThinRepository.fetchUserOverviewCompletedByDateRows as jest.Mock).mockResolvedValue([]);
     (taskThinRepository.fetchUserOverviewCompletedByTaskNameRows as jest.Mock).mockResolvedValue([]);
-    (userOverviewService.buildUserOverview as jest.Mock).mockReturnValue({
-      assigned: [],
-      completed: [],
-      prioritySummary: { urgent: 0, high: 0, medium: 0, low: 0 },
-      completedSummary: { total: 0, withinDueYes: 0, withinDueNo: 0 },
-      completedByDate: [],
-    });
-    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      filters: {},
-      filterOptions: {
-        services: [],
-        roleCategories: [],
-        regions: [],
-        locations: [],
-        taskNames: [],
-        workTypes: [],
-        users: [],
-      },
-    });
+    mockDefaultUserOverviewAggregate();
+    mockDefaultUserOverviewFilterState();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({});
     (caseWorkerProfileService.fetchCaseWorkerProfileNames as jest.Mock).mockResolvedValue({});
     (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview' });
@@ -469,25 +431,8 @@ describe('buildUserOverviewPage', () => {
       },
     ]);
     (completedComplianceSummaryService.fetchCompletedSummary as jest.Mock).mockResolvedValue({ total: 1, within: 1 });
-    (userOverviewService.buildUserOverview as jest.Mock).mockReturnValue({
-      assigned: [],
-      completed: [],
-      prioritySummary: { urgent: 0, high: 0, medium: 0, low: 0 },
-      completedSummary: { total: 0, withinDueYes: 0, withinDueNo: 0 },
-      completedByDate: [],
-    });
-    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      filters: {},
-      filterOptions: {
-        services: [],
-        roleCategories: [],
-        regions: [],
-        locations: [],
-        taskNames: [],
-        workTypes: [],
-        users: [],
-      },
-    });
+    mockDefaultUserOverviewAggregate();
+    mockDefaultUserOverviewFilterState();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({});
     (caseWorkerProfileService.fetchCaseWorkerProfileNames as jest.Mock).mockResolvedValue({});
     (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview-defaults' });
@@ -514,13 +459,7 @@ describe('buildUserOverviewPage', () => {
         days_beyond_count: 0,
       },
     ]);
-    (userOverviewService.buildUserOverview as jest.Mock).mockReturnValue({
-      assigned: [],
-      completed: [],
-      prioritySummary: { urgent: 0, high: 0, medium: 0, low: 0 },
-      completedSummary: { total: 0, withinDueYes: 0, withinDueNo: 0 },
-      completedByDate: [],
-    });
+    mockDefaultUserOverviewAggregate();
     (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview-task-name' });
 
     await buildUserOverviewPage({}, sort, 1, 1, 'user-overview-completed-by-task-name');
@@ -549,25 +488,8 @@ describe('buildUserOverviewPage', () => {
     ]);
     (taskThinRepository.fetchUserOverviewCompletedByTaskNameRows as jest.Mock).mockResolvedValue([]);
     (completedComplianceSummaryService.fetchCompletedSummary as jest.Mock).mockResolvedValue(null);
-    (userOverviewService.buildUserOverview as jest.Mock).mockReturnValue({
-      assigned: [],
-      completed: [],
-      prioritySummary: { urgent: 0, high: 0, medium: 0, low: 0 },
-      completedSummary: { total: 0, withinDueYes: 0, withinDueNo: 0 },
-      completedByDate: [],
-    });
-    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      filters: {},
-      filterOptions: {
-        services: [],
-        roleCategories: [],
-        regions: [],
-        locations: [],
-        taskNames: [],
-        workTypes: [],
-        users: [],
-      },
-    });
+    mockDefaultUserOverviewAggregate();
+    mockDefaultUserOverviewFilterState();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({});
     (caseWorkerProfileService.fetchCaseWorkerProfileNames as jest.Mock).mockResolvedValue({});
     (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview-compliance' });

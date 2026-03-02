@@ -94,6 +94,65 @@ jest.mock('../../../../main/modules/analytics/shared/services', () => ({
 describe('buildOutstandingPage', () => {
   const snapshotId = 102;
   const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const buildDefaultOutstandingResponse = (overrides = {}) => ({
+    summary: {
+      open: 0,
+      assigned: 0,
+      unassigned: 0,
+      assignedPct: 0,
+      unassignedPct: 0,
+      urgent: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+    },
+    timelines: {
+      openByCreated: [],
+      waitTimeByAssigned: [],
+      dueByDate: [],
+      tasksDueByPriority: [],
+    },
+    openByName: [],
+    criticalTasks: [],
+    outstandingByLocation: [],
+    outstandingByRegion: [],
+    ...overrides,
+  });
+  const mockOutstandingResponse = (overrides = {}) => {
+    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue(buildDefaultOutstandingResponse(overrides));
+  };
+  const buildDefaultFilterOptionsState = (overrides = {}) => ({
+    filters: {},
+    filterOptions: {
+      services: [],
+      roleCategories: [],
+      regions: [],
+      locations: [],
+      taskNames: [],
+      workTypes: [],
+      users: [],
+    },
+    ...overrides,
+  });
+  const mockFilterOptionsWithFallback = (overrides = {}) => {
+    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue(buildDefaultFilterOptionsState(overrides));
+  };
+  const mockDefaultCharts = (openByNameConfig = 'empty') => {
+    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: openByNameConfig });
+    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
+    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
+    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
+    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
+    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
+    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
+  };
+  const mockDefaultCriticalTasksPage = () => {
+    (criticalTasksTableService.fetchCriticalTasksPage as jest.Mock).mockResolvedValue({
+      rows: [],
+      totalResults: 0,
+      page: 1,
+    });
+  };
 
   afterAll(() => {
     consoleErrorSpy.mockRestore();
@@ -109,56 +168,13 @@ describe('buildOutstandingPage', () => {
   });
 
   test('builds the view model for full page load using deferred sections', async () => {
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: {
-        openByCreated: [],
-        waitTimeByAssigned: [],
-        dueByDate: [],
-        tasksDueByPriority: [],
-      },
-      openByName: [],
-      criticalTasks: [],
-      outstandingByLocation: [],
-      outstandingByRegion: [],
-    });
+    mockOutstandingResponse();
 
-    (criticalTasksTableService.fetchCriticalTasksPage as jest.Mock).mockResolvedValue({
-      rows: [],
-      totalResults: 0,
-      page: 1,
-    });
+    mockDefaultCriticalTasksPage();
 
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'openByName' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
+    mockDefaultCharts('openByName');
 
-    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      filters: {},
-      filterOptions: {
-        services: [],
-        roleCategories: [],
-        regions: [],
-        locations: [],
-        taskNames: [],
-        workTypes: [],
-        users: [],
-      },
-    });
+    mockFilterOptionsWithFallback();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({ Leeds: 'Leeds Crown Court' });
 
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'outstanding' });
@@ -194,26 +210,7 @@ describe('buildOutstandingPage', () => {
   });
 
   test('builds only the requested ajax section data', async () => {
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: {
-        openByCreated: [],
-        waitTimeByAssigned: [],
-        dueByDate: [],
-        tasksDueByPriority: [],
-      },
-      openByName: [],
-      criticalTasks: [],
+    mockOutstandingResponse({
       outstandingByLocation: [
         { location: 'Fallback', region: 'Unknown', open: 0, urgent: 0, high: 0, medium: 0, low: 0 },
       ],
@@ -225,13 +222,7 @@ describe('buildOutstandingPage', () => {
       totals: { name: 'Total', urgent: 1, high: 0, medium: 0, low: 0 },
     });
 
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'openByName' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
+    mockDefaultCharts('openByName');
 
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'outstanding-ajax' });
 
@@ -256,42 +247,10 @@ describe('buildOutstandingPage', () => {
   });
 
   test('builds the critical tasks section on demand', async () => {
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: {
-        openByCreated: [],
-        waitTimeByAssigned: [],
-        dueByDate: [],
-        tasksDueByPriority: [],
-      },
-      openByName: [],
-      criticalTasks: [],
-      outstandingByLocation: [],
-      outstandingByRegion: [],
-    });
+    mockOutstandingResponse();
 
-    (criticalTasksTableService.fetchCriticalTasksPage as jest.Mock).mockResolvedValue({
-      rows: [],
-      totalResults: 0,
-      page: 1,
-    });
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'empty' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
+    mockDefaultCriticalTasksPage();
+    mockDefaultCharts();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({});
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'outstanding-critical' });
 
@@ -302,26 +261,7 @@ describe('buildOutstandingPage', () => {
   });
 
   test('falls back to safe defaults when open-by-name fails', async () => {
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: {
-        openByCreated: [],
-        waitTimeByAssigned: [],
-        dueByDate: [],
-        tasksDueByPriority: [],
-      },
-      openByName: [],
-      criticalTasks: [],
+    mockOutstandingResponse({
       outstandingByLocation: [
         { location: 'Fallback', region: 'Unknown', open: 0, urgent: 0, high: 0, medium: 0, low: 0 },
       ],
@@ -330,13 +270,7 @@ describe('buildOutstandingPage', () => {
 
     (openTasksByNameChartService.fetchOpenTasksByName as jest.Mock).mockRejectedValue(new Error('db'));
 
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'empty' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
+    mockDefaultCharts();
 
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'outstanding-fallback' });
 
@@ -355,43 +289,9 @@ describe('buildOutstandingPage', () => {
   });
 
   test('treats unknown ajax section as full page load with deferred sections', async () => {
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: { openByCreated: [], waitTimeByAssigned: [], dueByDate: [], tasksDueByPriority: [] },
-      openByName: [],
-      criticalTasks: [],
-      outstandingByLocation: [],
-      outstandingByRegion: [],
-    });
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'empty' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
-    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      filters: {},
-      filterOptions: {
-        services: [],
-        roleCategories: [],
-        regions: [],
-        locations: [],
-        taskNames: [],
-        workTypes: [],
-        users: [],
-      },
-    });
+    mockOutstandingResponse();
+    mockDefaultCharts();
+    mockFilterOptionsWithFallback();
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'unknown-section' });
 
     await buildOutstandingPage({}, getDefaultOutstandingSort(), 1, 'not-a-section');
@@ -404,35 +304,12 @@ describe('buildOutstandingPage', () => {
   });
 
   test('fetches region and location descriptions only for required ajax sections', async () => {
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: { openByCreated: [], waitTimeByAssigned: [], dueByDate: [], tasksDueByPriority: [] },
-      openByName: [],
-      criticalTasks: [],
-      outstandingByLocation: [],
-      outstandingByRegion: [],
-    });
+    mockOutstandingResponse();
     (openTasksByRegionLocationTableService.fetchOpenTasksByRegionLocation as jest.Mock).mockResolvedValue({
       locationRows: [],
       regionRows: [],
     });
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'empty' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
+    mockDefaultCharts();
     (regionService.fetchRegionDescriptions as jest.Mock).mockResolvedValue({ N: 'North' });
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({ L: 'Leeds' });
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'region-location' });
@@ -449,36 +326,9 @@ describe('buildOutstandingPage', () => {
     );
 
     jest.clearAllMocks();
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: { openByCreated: [], waitTimeByAssigned: [], dueByDate: [], tasksDueByPriority: [] },
-      openByName: [],
-      criticalTasks: [],
-      outstandingByLocation: [],
-      outstandingByRegion: [],
-    });
-    (criticalTasksTableService.fetchCriticalTasksPage as jest.Mock).mockResolvedValue({
-      rows: [],
-      totalResults: 0,
-      page: 1,
-    });
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'empty' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
+    mockOutstandingResponse();
+    mockDefaultCriticalTasksPage();
+    mockDefaultCharts();
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({ L: 'Leeds' });
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'critical-only' });
 
@@ -489,21 +339,7 @@ describe('buildOutstandingPage', () => {
   });
 
   test('logs exact region-location failure message and preserves fallback region/location rows', async () => {
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: { openByCreated: [], waitTimeByAssigned: [], dueByDate: [], tasksDueByPriority: [] },
-      openByName: [],
-      criticalTasks: [],
+    mockOutstandingResponse({
       outstandingByLocation: [
         { location: 'Fallback', region: 'Fallback', open: 1, urgent: 1, high: 0, medium: 0, low: 0 },
       ],
@@ -512,13 +348,7 @@ describe('buildOutstandingPage', () => {
     (openTasksByRegionLocationTableService.fetchOpenTasksByRegionLocation as jest.Mock).mockRejectedValue(
       new Error('db')
     );
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'empty' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
+    mockDefaultCharts();
     (regionService.fetchRegionDescriptions as jest.Mock).mockRejectedValue(new Error('region-db'));
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockRejectedValue(new Error('location-db'));
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'region-location-fallback' });
@@ -548,43 +378,9 @@ describe('buildOutstandingPage', () => {
   });
 
   test('uses exact filter-options fallback message on full page loads', async () => {
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: { openByCreated: [], waitTimeByAssigned: [], dueByDate: [], tasksDueByPriority: [] },
-      openByName: [],
-      criticalTasks: [],
-      outstandingByLocation: [],
-      outstandingByRegion: [],
-    });
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'empty' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
-    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      filters: {},
-      filterOptions: {
-        services: [],
-        roleCategories: [],
-        regions: [],
-        locations: [],
-        taskNames: [],
-        workTypes: [],
-        users: [],
-      },
-    });
+    mockOutstandingResponse();
+    mockDefaultCharts();
+    mockFilterOptionsWithFallback();
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'full-page' });
 
     await buildOutstandingPage({}, getDefaultOutstandingSort(), 1, 'not-a-section');
@@ -605,41 +401,14 @@ describe('buildOutstandingPage', () => {
     ['open-tasks-summary', 'Failed to fetch open tasks summary from database'],
     ['criticalTasks', 'Failed to fetch critical tasks from database'],
   ] as const)('logs exact section fallback message for %s failures', async (section, expectedMessage) => {
-    (outstandingService.buildOutstanding as jest.Mock).mockReturnValue({
-      summary: {
-        open: 0,
-        assigned: 0,
-        unassigned: 0,
-        assignedPct: 0,
-        unassignedPct: 0,
-        urgent: 0,
-        high: 0,
-        medium: 0,
-        low: 0,
-      },
-      timelines: { openByCreated: [], waitTimeByAssigned: [], dueByDate: [], tasksDueByPriority: [] },
-      openByName: [],
-      criticalTasks: [],
-      outstandingByLocation: [],
-      outstandingByRegion: [],
-    });
+    mockOutstandingResponse();
     (openTasksCreatedByAssignmentChartService.fetchOpenTasksCreatedByAssignment as jest.Mock).mockResolvedValue([]);
     (waitTimeByAssignedDateChartService.fetchWaitTimeByAssignedDate as jest.Mock).mockResolvedValue([]);
     (tasksDueByDateChartService.fetchTasksDueByDate as jest.Mock).mockResolvedValue([]);
     (tasksDueByPriorityChartService.fetchTasksDueByPriority as jest.Mock).mockResolvedValue([]);
     (openTasksSummaryStatsService.fetchOpenTasksSummary as jest.Mock).mockResolvedValue(null);
-    (criticalTasksTableService.fetchCriticalTasksPage as jest.Mock).mockResolvedValue({
-      rows: [],
-      totalResults: 0,
-      page: 1,
-    });
-    (buildOpenByNameChartConfig as jest.Mock).mockReturnValue({ config: 'empty' });
-    (buildOpenTasksChart as jest.Mock).mockReturnValue('openTasks');
-    (buildWaitTimeChart as jest.Mock).mockReturnValue('waitTime');
-    (buildTasksDueChart as jest.Mock).mockReturnValue('tasksDue');
-    (buildTasksDuePriorityChart as jest.Mock).mockReturnValue('tasksDueByPriority');
-    (buildPriorityDonutChart as jest.Mock).mockReturnValue('priorityDonut');
-    (buildAssignmentDonutChart as jest.Mock).mockReturnValue('assignmentDonut');
+    mockDefaultCriticalTasksPage();
+    mockDefaultCharts();
     (regionService.fetchRegionDescriptions as jest.Mock).mockResolvedValue({});
     (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({});
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'section-error' });
