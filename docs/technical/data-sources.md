@@ -21,6 +21,7 @@ The application connects to three PostgreSQL databases using Prisma clients and 
 Connection building:
 - Uses `database.<prefix>.url` when provided; otherwise builds from host/port/user/password/db_name/schema.
 - Optional `schema` is passed via PostgreSQL `search_path` in the connection string.
+- Prisma clients are created with `PrismaPg({ connectionString })` rather than passing an external `pg.Pool` instance, so adapter/runtime `pg` class checks remain stable across dependency updates.
 
 ```mermaid
 flowchart TB
@@ -53,9 +54,17 @@ Required columns:
 Snapshots are built/published by `analytics.run_snapshot_refresh_batch()`.
 
 - Each run performs a full rebuild from source data before publishing the new snapshot.
+- `analytics.snapshot_task_rows` is partitioned by `snapshot_id`. Each run bulk-loads one per-snapshot table, builds its indexes, then attaches it as that snapshot's partition before publish.
+- `analytics.snapshot_task_daily_facts` is partitioned by `snapshot_id`. Each run inserts into one per-snapshot child table first, then builds that child's indexes, then attaches it as that snapshot's partition before publish.
+- The rebuild transaction sets local memory overrides (`work_mem = 256MB`, `maintenance_work_mem = 1GB`) to reduce sort spill and index-build overhead during refresh.
+- For the task-daily facts step, refresh temporarily increases hash-aggregate headroom (`work_mem = 1GB`, `hash_mem_multiplier = 4`, `enable_sort = off`) and then restores prior session values.
+- For the facet precompute step, refresh temporarily increases hash-aggregate headroom (`work_mem = 1GB`, `hash_mem_multiplier = 4`, `enable_sort = off`) and then restores prior session values.
+- Refresh explicitly runs `ANALYZE` on the newly attached `snapshot_task_rows` partition so query plans have up-to-date stats at publish time.
+- Refresh explicitly runs `ANALYZE` on the newly attached `snapshot_task_daily_facts` partition so query plans have up-to-date stats at publish time.
 - Each run also precomputes snapshot-scoped facet rows in `analytics.snapshot_filter_facet_facts`.
 - Scheduling is registered by application startup when `analytics.snapshotRefreshCronBootstrap.enabled=true`.
 - Startup registration executes in the configured cron metadata database (default `postgres`) and calls `cron.schedule_in_database(...)` so procedure execution runs in `cft_task_db`.
+- Retention cleanup removes obsolete snapshot metadata and drops obsolete `snapshot_task_rows` and `snapshot_task_daily_facts` partitions for those snapshot ids.
 
 ### analytics.snapshot_task_daily_facts
 Used for service overview, events, timelines, completion summaries, and outstanding open-task aggregates (by name, by region/location, and summary totals).
@@ -79,6 +88,9 @@ Required columns:
 - handling_time_days_count
 - processing_time_days_sum
 - processing_time_days_count
+
+Note:
+- Physical storage is per-snapshot partition (`LIST (snapshot_id)`), while repository SQL continues to read `analytics.snapshot_task_daily_facts` with `snapshot_id = :snapshotId`.
 
 ### analytics.snapshot_task_rows
 Used for per-task lists (user overview, critical tasks, task audit), completed-by-task-name aggregates on `/users`, and processing/handling time.
@@ -114,6 +126,9 @@ Required columns:
 - within_due_sort_value (indexed sort rank for within-due ordering)
 
 Note:
+- Physical storage is per-snapshot partition (`LIST (snapshot_id)`), while repository SQL continues to read `analytics.snapshot_task_rows` with `snapshot_id = :snapshotId`.
+- Partition autovacuum uses database defaults (no custom per-partition storage settings in `scripts.sql`).
+- Snapshot refresh does not enforce a unique `(snapshot_id, task_id)` index on `snapshot_task_rows`; task identity uniqueness is not relied on by app read paths.
 - Priority rank is calculated at query-time from `major_priority`, `due_date`, and `CURRENT_DATE`.
 - Row-level repositories return numeric `priority_rank`; labels are mapped in TypeScript when building UI-facing models.
 - Outstanding dashboard open-task aggregate sections do not read from this table in the warm path; they are facts-backed via `snapshot_task_daily_facts`.

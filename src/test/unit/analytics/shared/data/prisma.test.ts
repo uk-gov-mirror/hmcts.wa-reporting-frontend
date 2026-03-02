@@ -1,17 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import { createHash } from 'crypto';
 
-const prismaPgMock = jest.fn().mockImplementation(pool => ({ pool }));
-const poolMock = jest.fn().mockImplementation(options => ({ options }));
+const prismaPgMock = jest.fn().mockImplementation(config => ({ config }));
 const loggerInfoMock = jest.fn();
 const loggerWarnMock = jest.fn();
 
 jest.mock('@prisma/adapter-pg', () => ({
   PrismaPg: prismaPgMock,
-}));
-
-jest.mock('pg', () => ({
-  Pool: poolMock,
 }));
 
 jest.mock('@prisma/client', () => ({
@@ -76,9 +71,9 @@ describe('analytics prisma configuration', () => {
       'database.lrd.url': 'postgres://lrd',
     });
 
-    expect(poolMock).toHaveBeenNthCalledWith(1, { connectionString: 'postgres://tm' });
-    expect(poolMock).toHaveBeenNthCalledWith(2, { connectionString: 'postgres://crd' });
-    expect(poolMock).toHaveBeenNthCalledWith(3, { connectionString: 'postgres://lrd' });
+    expect(prismaPgMock).toHaveBeenNthCalledWith(1, { connectionString: 'postgres://tm' });
+    expect(prismaPgMock).toHaveBeenNthCalledWith(2, { connectionString: 'postgres://crd' });
+    expect(prismaPgMock).toHaveBeenNthCalledWith(3, { connectionString: 'postgres://lrd' });
     expect(PrismaClient).toHaveBeenNthCalledWith(1, { adapter: prismaPgMock.mock.results[0].value });
     expect(PrismaClient).toHaveBeenNthCalledWith(2, { adapter: prismaPgMock.mock.results[1].value });
     expect(PrismaClient).toHaveBeenNthCalledWith(3, { adapter: prismaPgMock.mock.results[2].value });
@@ -99,7 +94,7 @@ describe('analytics prisma configuration', () => {
     });
     expect(PrismaClient).toHaveBeenNthCalledWith(2);
     expect(PrismaClient).toHaveBeenNthCalledWith(3);
-    expect(poolMock).toHaveBeenCalledWith({
+    expect(prismaPgMock).toHaveBeenCalledWith({
       connectionString: 'postgresql://user:p%40ss@localhost:5432/tasks?options=-csearch_path=analytics',
     });
   });
@@ -114,7 +109,7 @@ describe('analytics prisma configuration', () => {
     expect(PrismaClient).toHaveBeenNthCalledWith(1, {
       adapter: prismaPgMock.mock.results[0].value,
     });
-    expect(poolMock).toHaveBeenCalledWith({ connectionString: 'postgresql://readonly@db.host:5432/tasks' });
+    expect(prismaPgMock).toHaveBeenCalledWith({ connectionString: 'postgresql://readonly@db.host:5432/tasks' });
   });
 
   test('builds a URL with options when configured', () => {
@@ -126,7 +121,7 @@ describe('analytics prisma configuration', () => {
       'database.tm.schema': 'analytics',
     });
 
-    expect(poolMock).toHaveBeenCalledWith({
+    expect(prismaPgMock).toHaveBeenCalledWith({
       connectionString: 'postgresql://readonly@db.host:5432/tasks?sslmode=require&options=-csearch_path=analytics',
     });
   });
@@ -165,7 +160,7 @@ describe('analytics prisma configuration', () => {
     createPrismaClient('postgres://test');
     createPrismaClient();
 
-    expect(poolMock).toHaveBeenCalledWith({ connectionString: 'postgres://test' });
+    expect(prismaPgMock).toHaveBeenCalledWith({ connectionString: 'postgres://test' });
     expect(PrismaClient).toHaveBeenCalledWith({ adapter: prismaPgMock.mock.results[0].value });
     expect(PrismaClient).toHaveBeenCalledWith();
   });

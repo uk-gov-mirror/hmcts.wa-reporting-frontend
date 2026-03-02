@@ -97,8 +97,8 @@ sequenceDiagram
 - A custom scroll/pan UI is used for large category lists (open tasks by name and completed tasks by name).
 
 ## Styling (SCSS)
-- GOV.UK and MOJ frontends are imported and configured.
-- Page width is set to 1400px.
+- GOV.UK frontend is configured via Sass modules (`@use 'govuk-frontend/dist/govuk/index'`) and MOJ frontend styles are loaded via `@use '@ministryofjustice/frontend'` (MOJ v9).
+- Page width is set to 1600px via `$govuk-page-width`.
 - CSS variables define chart colors aligned with GOV.UK palette.
 - Shared chart colours are defined in `src/main/modules/analytics/shared/charts/colors.ts` using named colour keys (for example `purple`, `blueDark`, `blueLight`, `greyLight`, `blue`, `grey`, `green`).
 - Priority bucket charts explicitly map Urgent/High/Medium/Low to `purple`/`blueDark`/`blueLight`/`greyLight`; non-priority chart semantics reuse the same blue/grey/green palette family.
