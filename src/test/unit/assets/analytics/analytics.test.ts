@@ -5,6 +5,7 @@ import { initAll } from 'govuk-frontend';
 import {
   fetchPaginatedSection,
   fetchSectionUpdate,
+  fetchSharedFiltersUpdate,
   fetchSortedSection,
   initAjaxFilterSections,
   initAjaxInitialSections,
@@ -12,6 +13,7 @@ import {
 import { renderCharts } from '../../../../main/assets/js/analytics/charts';
 import {
   initAutoSubmitForms,
+  initFacetedFilterAutoRefresh,
   initFilterPersistence,
   initMultiSelects,
   restoreScrollPosition,
@@ -32,6 +34,7 @@ import { setupAnalyticsDom } from './analyticsTestUtils';
 jest.mock('govuk-frontend', () => ({ initAll: jest.fn() }));
 jest.mock('@ministryofjustice/frontend', () => ({ initAll: jest.fn() }));
 jest.mock('../../../../main/assets/js/analytics/ajax', () => ({
+  fetchSharedFiltersUpdate: jest.fn(),
   fetchPaginatedSection: jest.fn(),
   fetchSectionUpdate: jest.fn(),
   fetchSortedSection: jest.fn(),
@@ -41,6 +44,7 @@ jest.mock('../../../../main/assets/js/analytics/ajax', () => ({
 jest.mock('../../../../main/assets/js/analytics/charts', () => ({ renderCharts: jest.fn() }));
 jest.mock('../../../../main/assets/js/analytics/forms', () => ({
   initAutoSubmitForms: jest.fn(),
+  initFacetedFilterAutoRefresh: jest.fn(),
   initFilterPersistence: jest.fn(),
   initMultiSelects: jest.fn(),
   restoreScrollPosition: jest.fn(),
@@ -67,6 +71,7 @@ const flushPromises = async (): Promise<void> => {
 describe('analytics bootstrap', () => {
   beforeEach(() => {
     setupAnalyticsDom();
+    (fetchSharedFiltersUpdate as jest.Mock).mockClear();
     (fetchPaginatedSection as jest.Mock).mockClear();
     (fetchSectionUpdate as jest.Mock).mockClear();
     (fetchSortedSection as jest.Mock).mockClear();
@@ -74,6 +79,7 @@ describe('analytics bootstrap', () => {
     (initAjaxFilterSections as jest.Mock).mockClear();
     (renderCharts as jest.Mock).mockClear();
     (initAutoSubmitForms as jest.Mock).mockClear();
+    (initFacetedFilterAutoRefresh as jest.Mock).mockClear();
     (initFilterPersistence as jest.Mock).mockClear();
     (initMultiSelects as jest.Mock).mockClear();
     (restoreScrollPosition as jest.Mock).mockClear();
@@ -97,6 +103,7 @@ describe('analytics bootstrap', () => {
     expect(initUserOverviewPagination).toHaveBeenCalledWith(expect.any(Function));
     expect(initMultiSelects).toHaveBeenCalled();
     expect(initFilterPersistence).toHaveBeenCalled();
+    expect(initFacetedFilterAutoRefresh).toHaveBeenCalledWith(expect.any(Function));
     expect(initOpenByName).toHaveBeenCalled();
     expect(initAjaxFilterSections).toHaveBeenCalledWith(expect.any(Function));
     expect(initAjaxInitialSections).toHaveBeenCalledWith(expect.any(Function));
@@ -112,6 +119,7 @@ describe('analytics bootstrap', () => {
     const fetchSectionUpdateWithDeps = (initAjaxFilterSections as jest.Mock).mock.calls[0][0];
     const fetchSortedSectionWithDeps = (initMojServerSorting as jest.Mock).mock.calls[0][0];
     const fetchPaginatedSectionWithDeps = (initCriticalTasksPagination as jest.Mock).mock.calls[0][0];
+    const fetchSharedFiltersWithDeps = (initFacetedFilterAutoRefresh as jest.Mock).mock.calls[0][0];
 
     const form = document.createElement('form');
 
@@ -137,6 +145,9 @@ describe('analytics bootstrap', () => {
       expect.any(Object)
     );
 
+    await fetchSharedFiltersWithDeps(form, 'service');
+    expect(fetchSharedFiltersUpdate).toHaveBeenCalledWith(form, 'service', expect.any(Object));
+
     const depsWithRebind = (fetchSectionUpdate as jest.Mock).mock.calls[0][2] as {
       rebindSectionBehaviors: () => void;
     };
@@ -149,6 +160,8 @@ describe('analytics bootstrap', () => {
     expect(initMojTotalsRowPinning).toHaveBeenCalledTimes(2);
     expect(initAjaxFilterSections).toHaveBeenCalledTimes(2);
     expect(initAutoSubmitForms).toHaveBeenCalledTimes(2);
+    expect(initFilterPersistence).toHaveBeenCalledTimes(2);
+    expect(initFacetedFilterAutoRefresh).toHaveBeenCalledTimes(2);
     expect(initCriticalTasksPagination).toHaveBeenCalledTimes(2);
     expect(initUserOverviewPagination).toHaveBeenCalledTimes(2);
     expect(initOpenByName).toHaveBeenCalledTimes(2);

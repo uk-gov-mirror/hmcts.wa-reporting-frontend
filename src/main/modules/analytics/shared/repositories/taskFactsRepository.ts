@@ -35,13 +35,58 @@ type OverviewFilterOptionKind =
   | 'workType'
   | 'assignee';
 
+type OverviewFacetFilterKey = 'service' | 'roleCategory' | 'region' | 'location' | 'taskName' | 'workType' | 'user';
+
 type OverviewFilterOptionRow = {
   option_type: OverviewFilterOptionKind;
   value: string;
   text: string;
 };
 
+type OverviewFilterOptionsParams = {
+  filters?: AnalyticsFilters;
+  queryOptions?: AnalyticsQueryOptions;
+  includeUserFilter?: boolean;
+};
+
+type OverviewFilterOptionsInput = OverviewFilterOptionsParams | AnalyticsQueryOptions | undefined;
+
 export class TaskFactsRepository {
+  private resolveOverviewFilterOptionsParams(params: OverviewFilterOptionsInput): OverviewFilterOptionsParams {
+    if (!params) {
+      return {};
+    }
+    if ('filters' in params || 'queryOptions' in params || 'includeUserFilter' in params) {
+      return params as OverviewFilterOptionsParams;
+    }
+    return { queryOptions: params as AnalyticsQueryOptions };
+  }
+
+  private buildOverviewFacetWhereClause(params: {
+    snapshotId: number;
+    filters: AnalyticsFilters;
+    queryOptions?: AnalyticsQueryOptions;
+    excludeFacet: OverviewFacetFilterKey;
+    includeUserFilter: boolean;
+  }): Prisma.Sql {
+    const { snapshotId, filters, queryOptions, excludeFacet, includeUserFilter } = params;
+    const branchFilters: AnalyticsFilters = {
+      ...filters,
+    };
+
+    delete branchFilters[excludeFacet];
+    if (!includeUserFilter) {
+      delete branchFilters.user;
+    }
+
+    const conditions: Prisma.Sql[] = [asOfSnapshotCondition(snapshotId)];
+    if (includeUserFilter && excludeFacet !== 'user' && filters.user && filters.user.length > 0) {
+      conditions.push(Prisma.sql`assignee IN (${Prisma.join(filters.user)})`);
+    }
+
+    return buildAnalyticsWhere(branchFilters, conditions, queryOptions);
+  }
+
   async fetchServiceOverviewRows(snapshotId: number, filters: AnalyticsFilters): Promise<ServiceOverviewDbRow[]> {
     const whereClause = buildAnalyticsWhere(filters, [
       asOfSnapshotCondition(snapshotId),
@@ -104,17 +149,144 @@ export class TaskFactsRepository {
 
   async fetchOverviewFilterOptionsRows(
     snapshotId: number,
-    queryOptions?: AnalyticsQueryOptions
+    params?: OverviewFilterOptionsInput
   ): Promise<OverviewFilterOptionsRows> {
-    const whereClause = buildAnalyticsWhere({}, [asOfSnapshotCondition(snapshotId, 'options')], queryOptions);
+    const resolved = this.resolveOverviewFilterOptionsParams(params);
+    const filters = resolved.filters ?? {};
+    const queryOptions = resolved.queryOptions;
+    const includeUserFilter = resolved.includeUserFilter ?? true;
+
+    const optionBranches: Prisma.Sql[] = [];
+    const serviceWhere = this.buildOverviewFacetWhereClause({
+      snapshotId,
+      filters,
+      queryOptions,
+      excludeFacet: 'service',
+      includeUserFilter,
+    });
+    optionBranches.push(Prisma.sql`
+      SELECT
+        'service'::text AS option_type,
+        jurisdiction_label AS value
+      FROM analytics.snapshot_filter_facet_facts
+      ${serviceWhere}
+        AND jurisdiction_label IS NOT NULL
+      GROUP BY jurisdiction_label
+    `);
+
+    const roleCategoryWhere = this.buildOverviewFacetWhereClause({
+      snapshotId,
+      filters,
+      queryOptions,
+      excludeFacet: 'roleCategory',
+      includeUserFilter,
+    });
+    optionBranches.push(Prisma.sql`
+      SELECT
+        'roleCategory'::text AS option_type,
+        role_category_label AS value
+      FROM analytics.snapshot_filter_facet_facts
+      ${roleCategoryWhere}
+        AND role_category_label IS NOT NULL
+        AND BTRIM(role_category_label) <> ''
+      GROUP BY role_category_label
+    `);
+
+    const regionWhere = this.buildOverviewFacetWhereClause({
+      snapshotId,
+      filters,
+      queryOptions,
+      excludeFacet: 'region',
+      includeUserFilter,
+    });
+    optionBranches.push(Prisma.sql`
+      SELECT
+        'region'::text AS option_type,
+        region AS value
+      FROM analytics.snapshot_filter_facet_facts
+      ${regionWhere}
+        AND region IS NOT NULL
+      GROUP BY region
+    `);
+
+    const locationWhere = this.buildOverviewFacetWhereClause({
+      snapshotId,
+      filters,
+      queryOptions,
+      excludeFacet: 'location',
+      includeUserFilter,
+    });
+    optionBranches.push(Prisma.sql`
+      SELECT
+        'location'::text AS option_type,
+        location AS value
+      FROM analytics.snapshot_filter_facet_facts
+      ${locationWhere}
+        AND location IS NOT NULL
+      GROUP BY location
+    `);
+
+    const taskNameWhere = this.buildOverviewFacetWhereClause({
+      snapshotId,
+      filters,
+      queryOptions,
+      excludeFacet: 'taskName',
+      includeUserFilter,
+    });
+    optionBranches.push(Prisma.sql`
+      SELECT
+        'taskName'::text AS option_type,
+        task_name AS value
+      FROM analytics.snapshot_filter_facet_facts
+      ${taskNameWhere}
+        AND task_name IS NOT NULL
+      GROUP BY task_name
+    `);
+
+    const workTypeWhere = this.buildOverviewFacetWhereClause({
+      snapshotId,
+      filters,
+      queryOptions,
+      excludeFacet: 'workType',
+      includeUserFilter,
+    });
+    optionBranches.push(Prisma.sql`
+      SELECT
+        'workType'::text AS option_type,
+        work_type AS value
+      FROM analytics.snapshot_filter_facet_facts
+      ${workTypeWhere}
+        AND work_type IS NOT NULL
+      GROUP BY work_type
+    `);
+
+    if (includeUserFilter) {
+      const assigneeWhere = this.buildOverviewFacetWhereClause({
+        snapshotId,
+        filters,
+        queryOptions,
+        excludeFacet: 'user',
+        includeUserFilter,
+      });
+      optionBranches.push(Prisma.sql`
+        SELECT
+          'assignee'::text AS option_type,
+          assignee AS value
+        FROM analytics.snapshot_filter_facet_facts
+        ${assigneeWhere}
+          AND assignee IS NOT NULL
+        GROUP BY assignee
+      `);
+    }
 
     const optionRows = await tmPrisma.$queryRaw<OverviewFilterOptionRow[]>(Prisma.sql`
-      WITH deduped_options AS (
-        SELECT DISTINCT
-          options.option_type,
-          options.value
-        FROM analytics.snapshot_filter_option_values options
-        ${whereClause}
+      WITH option_rows AS (
+        ${Prisma.join(optionBranches, ' UNION ALL ')}
+      ),
+      deduped_options AS (
+        SELECT option_type, value
+        FROM option_rows
+        GROUP BY option_type, value
       )
       SELECT
         deduped_options.option_type,

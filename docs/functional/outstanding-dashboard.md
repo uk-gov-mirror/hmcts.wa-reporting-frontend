@@ -121,6 +121,7 @@ flowchart TB
   - By region and location
   - By region
   - By location
+- By region and location column order: `Region`, `Location`, then open-task count and priority columns.
 - Columns include counts for total open tasks and each priority bucket.
 
 ## Notes

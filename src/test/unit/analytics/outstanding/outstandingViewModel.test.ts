@@ -142,7 +142,7 @@ describe('buildOutstandingViewModel', () => {
 
     expect(viewModel.openTasksTotalsRow[3].text).toBe('0%');
     expect(viewModel.outstandingByLocationRows[0][0].text).toBe('Leeds Crown Court');
-    expect(viewModel.outstandingByRegionLocationRows[0][1].text).toBe('North East');
+    expect(viewModel.outstandingByRegionLocationRows[0][0].text).toBe('North East');
     expect(viewModel.criticalTasks[0].dueDate).toBeUndefined();
     expect(viewModel.criticalTasks[0].prioritySortValue).toBe(4);
     expect(viewModel.criticalTasksPagination.totalResults).toBe(1);
@@ -213,9 +213,12 @@ describe('buildOutstandingViewModel', () => {
 
     expect(viewModel.outstandingByRegionRows[0][0].text).toBe('North East');
     expect(viewModel.outstandingByRegionRows[1][0].text).toBe('South West');
-    expect(viewModel.outstandingByRegionLocationRows[0][1].text).toBe('North East');
-    expect(viewModel.outstandingByRegionLocationRows[1][1].text).toBe('South West');
-    expect(viewModel.outstandingByRegionLocationRows[2][0].text).toBe('York');
+    expect(viewModel.outstandingByRegionLocationRows[0][0].text).toBe('North East');
+    expect(viewModel.outstandingByRegionLocationRows[0][1].text).toBe('Leeds Crown Court');
+    expect(viewModel.outstandingByRegionLocationRows[1][0].text).toBe('North East');
+    expect(viewModel.outstandingByRegionLocationRows[1][1].text).toBe('York');
+    expect(viewModel.outstandingByRegionLocationRows[2][0].text).toBe('South West');
+    expect(viewModel.outstandingByRegionLocationRows[2][1].text).toBe('Leeds Crown Court');
     expect(viewModel.criticalTasksPagination.pageSize).toBe(50);
   });
 
@@ -233,7 +236,8 @@ describe('buildOutstandingViewModel', () => {
       { Same: 'Same Location' },
       { North: 'North', South: 'South' }
     );
-    expect(locationRows[0][1].text).toBe('North');
+    expect(locationRows[0][0].text).toBe('North');
+    expect(locationRows[0][1].text).toBe('Same Location');
 
     const locationRowsNoRegion = buildOutstandingLocationRows(
       [{ location: 'Only', region: 'North', open: 1, urgent: 0, high: 0, medium: 0, low: 1 }],

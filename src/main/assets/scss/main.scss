@@ -1,8 +1,7 @@
 @use 'govuk-frontend/dist/govuk/index' as * with (
   $govuk-page-width: 1600px
 );
-// Cannot use @use until moj-frontend releases version suitable for govuk-frontend v6
-@import '@ministryofjustice/frontend/moj/moj-frontend.min.css';
+@use '@ministryofjustice/frontend';
 
 .moj-datepicker__dialog {
   z-index: 5;

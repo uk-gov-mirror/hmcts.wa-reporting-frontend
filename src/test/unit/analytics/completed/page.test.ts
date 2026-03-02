@@ -7,7 +7,7 @@ import { completedProcessingHandlingTimeService } from '../../../../main/modules
 import { completedRegionLocationTableService } from '../../../../main/modules/analytics/completed/visuals/completedRegionLocationTableService';
 import { completedTimelineChartService } from '../../../../main/modules/analytics/completed/visuals/completedTimelineChartService';
 import {
-  fetchFilterOptionsWithFallback,
+  fetchFacetedFilterStateWithFallback as fetchFilterOptionsWithFallback,
   fetchPublishedSnapshotContext,
 } from '../../../../main/modules/analytics/shared/pageUtils';
 import { taskThinRepository } from '../../../../main/modules/analytics/shared/repositories';
@@ -50,7 +50,7 @@ jest.mock('../../../../main/modules/analytics/completed/visuals/completedTimelin
 }));
 
 jest.mock('../../../../main/modules/analytics/shared/pageUtils', () => ({
-  fetchFilterOptionsWithFallback: jest.fn(),
+  fetchFacetedFilterStateWithFallback: jest.fn(),
   fetchPublishedSnapshotContext: jest.fn(),
   normaliseDateRange: jest.requireActual('../../../../main/modules/analytics/shared/pageUtils').normaliseDateRange,
   settledArrayWithFallback: jest.requireActual('../../../../main/modules/analytics/shared/pageUtils')
@@ -183,13 +183,16 @@ describe('buildCompletedPage', () => {
     (completedService.buildCompleted as jest.Mock).mockReturnValue(fallback);
     (completedService.buildCompletedByRegionLocation as jest.Mock).mockReturnValue(fallbackRegionLocation);
     (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      services: [],
-      roleCategories: [],
-      regions: [],
-      locations: [],
-      taskNames: [],
-      workTypes: [],
-      users: [],
+      filters: {},
+      filterOptions: {
+        services: [],
+        roleCategories: [],
+        regions: [],
+        locations: [],
+        taskNames: [],
+        workTypes: [],
+        users: [],
+      },
     });
     (buildCompletedViewModel as jest.Mock).mockReturnValue({ view: 'completed-empty' });
 
@@ -231,13 +234,16 @@ describe('buildCompletedPage', () => {
     (completedService.buildCompleted as jest.Mock).mockReturnValue(fallback);
     (completedService.buildCompletedByRegionLocation as jest.Mock).mockReturnValue({ byLocation: [], byRegion: [] });
     (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      services: [],
-      roleCategories: [],
-      regions: [],
-      locations: [],
-      taskNames: [],
-      workTypes: [],
-      users: [],
+      filters: {},
+      filterOptions: {
+        services: [],
+        roleCategories: [],
+        regions: [],
+        locations: [],
+        taskNames: [],
+        workTypes: [],
+        users: [],
+      },
     });
     (buildCompletedViewModel as jest.Mock).mockReturnValue({ view: 'completed-unknown' });
 
@@ -493,21 +499,26 @@ describe('buildCompletedPage', () => {
     (completedService.buildCompleted as jest.Mock).mockReturnValue(fallback);
     (completedService.buildCompletedByRegionLocation as jest.Mock).mockReturnValue({ byLocation: [], byRegion: [] });
     (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      services: [],
-      roleCategories: [],
-      regions: [],
-      locations: [],
-      taskNames: [],
-      workTypes: [],
-      users: [],
+      filters: {},
+      filterOptions: {
+        services: [],
+        roleCategories: [],
+        regions: [],
+        locations: [],
+        taskNames: [],
+        workTypes: [],
+        users: [],
+      },
     });
     (buildCompletedViewModel as jest.Mock).mockReturnValue({ view: 'completed-filter-options' });
 
     await buildCompletedPage({}, 'handlingTime', undefined, 'unknown-section');
 
     expect(fetchFilterOptionsWithFallback).toHaveBeenCalledWith(
-      'Failed to fetch completed filter options from database',
-      snapshotId
+      expect.objectContaining({
+        errorMessage: 'Failed to fetch completed filter options from database',
+        snapshotId,
+      })
     );
   });
 

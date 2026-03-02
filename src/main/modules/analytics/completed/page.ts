@@ -1,6 +1,7 @@
 import { emptyOverviewFilterOptions } from '../shared/filters';
+import type { FacetFilterKey } from '../shared/filters';
 import {
-  fetchFilterOptionsWithFallback,
+  fetchFacetedFilterStateWithFallback,
   fetchPublishedSnapshotContext,
   normaliseDateRange,
   settledArrayWithFallback,
@@ -75,6 +76,7 @@ export async function buildCompletedPage(
   selectedMetric: CompletedMetric,
   caseId?: string,
   ajaxSection?: string,
+  changedFilter?: FacetFilterKey,
   requestedSnapshotId?: number
 ): Promise<CompletedPageViewModel> {
   const snapshotContext = await fetchPublishedSnapshotContext(requestedSnapshotId);
@@ -213,12 +215,17 @@ export async function buildCompletedPage(
     'Failed to fetch court venue descriptions from database',
     {}
   );
-  const filterOptions = requestedSection
-    ? emptyOverviewFilterOptions()
-    : await fetchFilterOptionsWithFallback(
-        'Failed to fetch completed filter options from database',
-        snapshotContext.snapshotId
-      );
+  const facetedFilterState = requestedSection
+    ? { filters, filterOptions: emptyOverviewFilterOptions() }
+    : await fetchFacetedFilterStateWithFallback({
+        errorMessage: 'Failed to fetch completed filter options from database',
+        snapshotId: snapshotContext.snapshotId,
+        filters,
+        changedFilter,
+        includeUserFilter: false,
+      });
+  const resolvedFilters = facetedFilterState.filters;
+  const filterOptions = facetedFilterState.filterOptions;
   const allTasks: Task[] = [];
 
   const completed: CompletedResponse = {
@@ -230,7 +237,7 @@ export async function buildCompletedPage(
   };
 
   return buildCompletedViewModel({
-    filters,
+    filters: resolvedFilters,
     snapshotId: snapshotContext.snapshotId,
     snapshotToken: snapshotContext.snapshotToken,
     completed,

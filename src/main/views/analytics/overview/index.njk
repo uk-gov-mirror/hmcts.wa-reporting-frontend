@@ -8,7 +8,9 @@
     <h1 class="govuk-heading-xl">Service performance overview</h1>
     <p class="govuk-body-l">High level overview of current service performance</p>
 
-    {% include "analytics/overview/overview-filters.njk" %}
+    <div data-section="shared-filters">
+      {% include "analytics/overview/overview-filters.njk" %}
+    </div>
 
     <div data-section="overview-service-performance" data-ajax-initial="true">
       {% include "analytics/overview/partials/service-performance-table.njk" %}

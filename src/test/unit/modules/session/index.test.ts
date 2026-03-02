@@ -1,5 +1,20 @@
 import type { Application } from 'express';
 
+const expectSessionSecurityOptions = (sessionMiddleware: jest.Mock, store: unknown): void => {
+  expect(sessionMiddleware).toHaveBeenCalledWith({
+    name: 'app-cookie',
+    secret: 'secret',
+    resave: false,
+    saveUninitialized: false,
+    rolling: true,
+    store,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+    },
+  });
+};
+
 describe('AppSession module', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -8,7 +23,7 @@ describe('AppSession module', () => {
 
   it('configures redis-backed sessions when redis is available', () => {
     const configValues: Record<string, unknown> = {
-      'secrets.wa.session-secret': 'secret',
+      'secrets.wa.wa-reporting-frontend-session-secret': 'secret',
       'session.appCookie.name': 'app-cookie',
       'secrets.wa.wa-reporting-redis-host': 'redis-host',
       'secrets.wa.wa-reporting-redis-port': 6379,
@@ -50,13 +65,13 @@ describe('AppSession module', () => {
     expect(redisClient.connect).toHaveBeenCalled();
     expect(app.locals.appRedisClient).toBeDefined();
     expect(app.locals.redisConnectPromise).toBeDefined();
-    expect(sessionMiddleware).toHaveBeenCalledWith(expect.objectContaining({ store: { store: 'redis' } }));
+    expectSessionSecurityOptions(sessionMiddleware, { store: 'redis' });
     expect(app.use).toHaveBeenCalledWith('session-middleware');
   });
 
   it('configures redis without tls when access key is not provided', () => {
     const configValues: Record<string, unknown> = {
-      'secrets.wa.session-secret': 'secret',
+      'secrets.wa.wa-reporting-frontend-session-secret': 'secret',
       'session.appCookie.name': 'app-cookie',
       'secrets.wa.wa-reporting-redis-host': 'redis-host',
       'secrets.wa.wa-reporting-redis-port': 6379,
@@ -96,13 +111,13 @@ describe('AppSession module', () => {
     expect(redisClient.connect).toHaveBeenCalled();
     expect(app.locals.appRedisClient).toBeDefined();
     expect(app.locals.redisConnectPromise).toBeDefined();
-    expect(sessionMiddleware).toHaveBeenCalledWith(expect.objectContaining({ store: { store: 'redis' } }));
+    expectSessionSecurityOptions(sessionMiddleware, { store: 'redis' });
     expect(app.use).toHaveBeenCalledWith('session-middleware');
   });
 
   it('falls back to file store when redis is missing', () => {
     const configValues: Record<string, unknown> = {
-      'secrets.wa.session-secret': 'secret',
+      'secrets.wa.wa-reporting-frontend-session-secret': 'secret',
       'session.appCookie.name': 'app-cookie',
       'secrets.wa.wa-reporting-redis-host': undefined,
       'secrets.wa.wa-reporting-redis-port': undefined,
@@ -128,7 +143,7 @@ describe('AppSession module', () => {
 
     expect(fileStoreFactory).toHaveBeenCalled();
     expect(fileStore).toHaveBeenCalledWith({ path: '/tmp' });
-    expect(sessionMiddleware).toHaveBeenCalledWith(expect.objectContaining({ store: { store: 'file' } }));
+    expectSessionSecurityOptions(sessionMiddleware, { store: 'file' });
     expect(app.use).toHaveBeenCalledWith('session-middleware');
   });
 });

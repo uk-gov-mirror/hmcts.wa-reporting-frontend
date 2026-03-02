@@ -52,6 +52,7 @@ Two session mechanisms are used:
   - Path: `/`.
   - Max age: `analytics.filtersCookieMaxAgeDays`.
 - The cookie is cleared on filter reset or when the filter payload exceeds size limits.
+- Shared-filter facet refresh requests (`facetRefresh=1`) treat submitted form state as authoritative; when no filters are submitted, stale cookie values are not rehydrated.
 
 ## Pagination query safeguards
 - Server-side pagination is capped to `MAX_PAGINATION_RESULTS` (500 rows) for paged analytics tables.

@@ -9,7 +9,9 @@
     <h1 class="govuk-heading-xl">Tasks outstanding</h1>
     <p class="govuk-body-l">Details of outstanding tasks</p>
 
-    {% include "analytics/outstanding/outstanding-filters.njk" %}
+    <div data-section="shared-filters">
+      {% include "analytics/outstanding/outstanding-filters.njk" %}
+    </div>
 
     <div data-section="open-tasks-summary" data-ajax-initial="true">
       {% include "analytics/outstanding/partials/open-tasks-summary.njk" %}

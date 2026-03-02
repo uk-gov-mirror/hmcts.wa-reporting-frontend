@@ -90,25 +90,27 @@ describe('taskFactsRepository', () => {
     expect(toQuery.values).toEqual(expect.arrayContaining([snapshotId, to]));
   });
 
-  test('fetchOverviewFilterOptionsRows executes a precomputed filter-options query', async () => {
+  test('fetchOverviewFilterOptionsRows executes a faceted snapshot filter-options query', async () => {
     await taskFactsRepository.fetchOverviewFilterOptionsRows(snapshotId);
 
     expect(tmPrisma.$queryRaw).toHaveBeenCalledTimes(1);
     const query = queryCall();
     const normalised = normaliseSql(query.sql);
 
-    expect(normalised).toContain('WITH deduped_options AS');
-    expect(normalised).toContain('SELECT DISTINCT');
-    expect(normalised).toContain('FROM analytics.snapshot_filter_option_values options');
-    expect(normalised).toContain('options.snapshot_id =');
+    expect(normalised).toContain('WITH option_rows AS');
+    expect(normalised).toContain('deduped_options AS');
+    expect(normalised).toContain('FROM analytics.snapshot_filter_facet_facts');
+    expect(normalised).toContain('snapshot_id =');
+    expect(normalised).toContain("SELECT 'service'::text AS option_type");
+    expect(normalised).toContain("SELECT 'assignee'::text AS option_type");
+    expect(normalised).toContain('GROUP BY option_type, value');
     expect(normalised).toContain('LEFT JOIN cft_task_db.work_types');
     expect(normalised).toContain("deduped_options.option_type = 'workType'");
     expect(normalised).toContain(
       "CASE WHEN deduped_options.option_type = 'workType' THEN COALESCE(work_types.label, deduped_options.value)"
     );
     expect(normalised).toContain('ORDER BY deduped_options.option_type ASC, text ASC, deduped_options.value ASC');
-    expect(normalised).not.toContain('FROM analytics.snapshot_task_daily_facts');
-    expect(normalised).not.toContain('FROM analytics.snapshot_task_rows');
+    expect(normalised).not.toContain('FROM analytics.snapshot_filter_option_values');
   });
 
   test('maps filter option rows into typed option arrays', async () => {
@@ -141,6 +143,15 @@ describe('taskFactsRepository', () => {
     const query = queryCall();
     expect(query.sql).toContain('UPPER(role_category_label) NOT IN');
     expect(query.values).toContain('JUDICIAL');
+  });
+
+  test('omits assignee branch when user filter facet is disabled', async () => {
+    await taskFactsRepository.fetchOverviewFilterOptionsRows(snapshotId, {
+      includeUserFilter: false,
+    });
+
+    const query = queryCall();
+    expect(query.sql).not.toContain("SELECT 'assignee'::text AS option_type");
   });
 
   test('uses completed-date filtering for processing and handling time', async () => {

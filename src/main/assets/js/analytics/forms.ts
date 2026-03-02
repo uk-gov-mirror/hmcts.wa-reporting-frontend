@@ -116,6 +116,68 @@ export function initFilterPersistence(): void {
   });
 }
 
+export function initFacetedFilterAutoRefresh(
+  refreshSharedFilters: (form: HTMLFormElement, changedFilter: string) => Promise<void>
+): void {
+  const forms = document.querySelectorAll<HTMLFormElement>('form[data-analytics-filters="true"]');
+  forms.forEach(form => {
+    const multiselects = form.querySelectorAll<HTMLDetailsElement>('details[data-module="analytics-multiselect"]');
+    multiselects.forEach(details => {
+      if (details.dataset.facetRefreshBound === 'true') {
+        return;
+      }
+      const changedFilter = details.dataset.filterKey;
+      if (!changedFilter) {
+        return;
+      }
+
+      let hasSelectionChanges = false;
+      let refreshInFlight = false;
+      const triggerRefreshIfNeeded = () => {
+        if (!hasSelectionChanges || refreshInFlight) {
+          return;
+        }
+        hasSelectionChanges = false;
+        refreshInFlight = true;
+        void refreshSharedFilters(form, changedFilter).finally(() => {
+          refreshInFlight = false;
+        });
+      };
+
+      details.addEventListener('change', event => {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement)) {
+          return;
+        }
+        if (!target.hasAttribute('data-multiselect-item') && !target.hasAttribute('data-select-all')) {
+          return;
+        }
+        hasSelectionChanges = true;
+      });
+
+      details.addEventListener('toggle', () => {
+        if (details.open) {
+          hasSelectionChanges = false;
+          return;
+        }
+        triggerRefreshIfNeeded();
+      });
+
+      details.addEventListener('focusout', event => {
+        const relatedTarget = event.relatedTarget;
+        if (relatedTarget instanceof Node && details.contains(relatedTarget)) {
+          return;
+        }
+        if (!details.open) {
+          triggerRefreshIfNeeded();
+        }
+      });
+
+      details.dataset.facetRefreshBound = 'true';
+    });
+  });
+}
+
 export function initMultiSelects(): void {
   const nodes = document.querySelectorAll<HTMLDetailsElement>('[data-module="analytics-multiselect"]');
   nodes.forEach(details => {
@@ -180,7 +242,15 @@ export function initMultiSelects(): void {
         return;
       }
       const checkedItems = items.filter(item => item.checked);
-      if (checkedItems.length === 0 || checkedItems.length === items.length) {
+      if (checkedItems.length === 0) {
+        summary.textContent = allText;
+        return;
+      }
+      if (checkedItems.length === items.length) {
+        if (checkedItems.length === 1) {
+          summary.textContent = checkedItems[0]?.dataset.itemLabel ?? checkedItems[0]?.value ?? allText;
+          return;
+        }
         summary.textContent = allText;
         return;
       }
@@ -236,14 +306,29 @@ export function initMultiSelects(): void {
       details.querySelector<HTMLElement>('summary')?.focus();
     });
 
-    document.addEventListener('click', event => {
+    details.addEventListener('toggle', () => {
+      updateAll();
+    });
+
+    const isEventInsideDetails = (event: Event): boolean => {
+      if (typeof event.composedPath === 'function') {
+        return event.composedPath().includes(details);
+      }
+      const target = event.target;
+      return target instanceof Node && details.contains(target);
+    };
+
+    const closeIfClickOutside = (event: Event) => {
       if (!details.open) {
         return;
       }
-      if (!details.contains(event.target as Node)) {
+      if (!isEventInsideDetails(event)) {
         details.open = false;
       }
-    });
+    };
+
+    document.addEventListener('pointerdown', closeIfClickOutside, true);
+    document.addEventListener('click', closeIfClickOutside, true);
 
     updateSearch();
     updateAll();

@@ -9,7 +9,9 @@
     <h1 class="govuk-heading-xl">Completed tasks</h1>
     <p class="govuk-body-l">Details of completed tasks</p>
 
-    {% include "analytics/completed/completed-filters.njk" %}
+    <div data-section="shared-filters">
+      {% include "analytics/completed/completed-filters.njk" %}
+    </div>
     <div data-section="completed-summary" data-ajax-initial="true">
       {% include "analytics/completed/partials/completed-summary.njk" %}
     </div>

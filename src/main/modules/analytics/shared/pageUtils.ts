@@ -2,16 +2,15 @@ import config from 'config';
 import { createHmac, timingSafeEqual } from 'crypto';
 
 import { emptyOverviewFilterOptions } from './filters';
+import type { FacetFilterKey } from './filters';
 import { buildFreshnessInsetText } from './formatting';
 import type { AnalyticsQueryOptions } from './repositories/filters';
 import { snapshotStateRepository } from './repositories';
+import type { AnalyticsFilters } from './types';
 import { type FilterOptions, filterService } from './services';
 import { logDbError, settledValue } from './utils';
 
-const SNAPSHOT_TOKEN_SECRET_FALLBACK = 'snapshot-token-fallback-secret';
-const snapshotTokenSecret: string = config.has('secrets.wa.session-secret')
-  ? config.get('secrets.wa.session-secret')
-  : SNAPSHOT_TOKEN_SECRET_FALLBACK;
+const snapshotTokenSecret: string = config.get('secrets.wa.wa-reporting-frontend-session-secret');
 
 export type PublishedSnapshotContext = {
   snapshotId: number;
@@ -72,13 +71,6 @@ export async function fetchPublishedSnapshotContext(requestedSnapshotId?: number
 }
 
 function parseSnapshotIdInput(value: unknown): number | undefined {
-  if (typeof value === 'number') {
-    if (Number.isSafeInteger(value) && value > 0) {
-      return value;
-    }
-    return undefined;
-  }
-
   if (typeof value !== 'string' || !/^\d+$/.test(value)) {
     return undefined;
   }
@@ -130,6 +122,33 @@ export async function fetchFilterOptionsWithFallback(
     logDbError(errorMessage, error);
   }
   return filterOptions;
+}
+
+export async function fetchFacetedFilterStateWithFallback(params: {
+  errorMessage: string;
+  snapshotId: number;
+  filters: AnalyticsFilters;
+  queryOptions?: AnalyticsQueryOptions;
+  changedFilter?: FacetFilterKey;
+  includeUserFilter?: boolean;
+}): Promise<{ filters: AnalyticsFilters; filterOptions: FilterOptions }> {
+  const { errorMessage, snapshotId, filters, queryOptions, changedFilter, includeUserFilter } = params;
+  let resolvedFilters = filters;
+  let filterOptions = emptyOverviewFilterOptions();
+
+  try {
+    const resolved = await filterService.fetchFacetedFilterState(snapshotId, filters, {
+      queryOptions,
+      changedFilter,
+      includeUserFilter,
+    });
+    resolvedFilters = resolved.filters;
+    filterOptions = resolved.filterOptions;
+  } catch (error) {
+    logDbError(errorMessage, error);
+  }
+
+  return { filters: resolvedFilters, filterOptions };
 }
 
 export function normaliseDateRange(range?: { from?: Date; to?: Date }): { from?: Date; to?: Date } | undefined {

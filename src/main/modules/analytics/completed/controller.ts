@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 
 import { BASE_FILTER_KEYS, applyFilterCookieFromConfig } from '../shared/filterCookies';
+import { parseChangedFacetFilter } from '../shared/filters';
 import { parseSnapshotTokenInput } from '../shared/pageUtils';
 import { getAjaxPartialTemplate, isAjaxRequest } from '../shared/partials';
 import { AnalyticsFilters, CompletedMetric } from '../shared/types';
@@ -29,6 +30,7 @@ class CompletedController {
     'completedTo',
   ];
   private readonly partials = {
+    'shared-filters': 'analytics/completed/completed-filters',
     'completed-summary': 'analytics/completed/partials/completed-summary',
     'completed-timeline': 'analytics/completed/partials/completed-timeline',
     'completed-by-name': 'analytics/completed/partials/completed-by-name',
@@ -49,11 +51,12 @@ class CompletedController {
       const caseId = parseCaseId(source);
       const metric = parseMetric(source);
       const ajaxSection = typeof source.ajaxSection === 'string' ? source.ajaxSection : undefined;
+      const changedFilter = parseChangedFacetFilter(source.changedFilter, { includeUserFilter: false });
       const requestedSnapshotId = parseSnapshotTokenInput(source.snapshotToken);
       const viewModel =
         requestedSnapshotId !== undefined
-          ? await buildCompletedPage(filters, metric, caseId, ajaxSection, requestedSnapshotId)
-          : await buildCompletedPage(filters, metric, caseId, ajaxSection);
+          ? await buildCompletedPage(filters, metric, caseId, ajaxSection, changedFilter, requestedSnapshotId)
+          : await buildCompletedPage(filters, metric, caseId, ajaxSection, changedFilter);
 
       if (isAjaxRequest(req)) {
         const template = getAjaxPartialTemplate({

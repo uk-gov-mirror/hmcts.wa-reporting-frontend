@@ -28,7 +28,7 @@ flowchart TB
 ```
 
 ## Request lifecycle
-1. Express initializes middleware: body parsing, cookies, optional compression (`compression.enabled`), static assets, caching headers.
+1. Express initializes middleware: body parsing, cookies, optional compression (`compression.enabled`), webpack dev middleware in development, static assets, caching headers.
 2. Health (`/health`) and info (`/info`) endpoints are registered.
 3. Session middleware is initialized (AppSession).
 4. Optional OIDC middleware enforces authentication and RBAC access role.
@@ -61,7 +61,7 @@ Shared analytics modules live under `src/main/modules/analytics/shared` and incl
 - Repositories and Prisma data access
 
 ## Environments
-- Development mode: `NODE_ENV=development` enables webpack dev middleware.
+- Development mode: `NODE_ENV=development` enables webpack dev middleware and mounts it before static assets so in-memory bundles are served ahead of on-disk files.
 - Production mode: `NODE_ENV=production` expects built assets in `dist/main` and `src/main/public`.
 - Server port defaults to 3100 (configurable via `PORT`).
 

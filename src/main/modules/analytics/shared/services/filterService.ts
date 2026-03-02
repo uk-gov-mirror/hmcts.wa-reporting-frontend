@@ -1,7 +1,15 @@
 import { CacheKeys, buildSnapshotScopedCacheKey, getCache, setCache } from '../cache/cache';
+import {
+  FacetFilterKey,
+  areFacetFiltersEqual,
+  getFacetFilterKeys,
+  mergeFacetFilters,
+  pickFacetFilters,
+} from '../filters';
 import { taskFactsRepository } from '../repositories';
 import type { CaseWorkerProfileRow } from '../repositories';
 import type { AnalyticsQueryOptions } from '../repositories/filters';
+import type { AnalyticsFilters } from '../types';
 import type { SelectOption } from '../viewModels/filterOptions';
 
 import { caseWorkerProfileService, courtVenueService, regionService } from './index';
@@ -14,6 +22,11 @@ export type FilterOptions = {
   taskNames: string[];
   workTypes: SelectOption[];
   users: SelectOption[];
+};
+
+export type FacetedFilterState = {
+  filters: AnalyticsFilters;
+  filterOptions: FilterOptions;
 };
 
 const compareByText = (a: SelectOption, b: SelectOption) => a.text.localeCompare(b.text);
@@ -80,27 +93,122 @@ function buildQueryOptionsCacheSignature(queryOptions?: AnalyticsQueryOptions): 
   return `excludeRoleCategories=${normalised.join(',')}`;
 }
 
+function buildFilterValuesCacheSignature(filters: AnalyticsFilters, includeUserFilter: boolean): string {
+  const facetFilters = pickFacetFilters(filters, { includeUserFilter });
+  const signatureParts = getFacetFilterKeys(includeUserFilter)
+    .map(key => {
+      const values = facetFilters[key];
+      if (!values || values.length === 0) {
+        return null;
+      }
+      const normalised = [...new Set(values.map(value => value.trim()).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b)
+      );
+      if (normalised.length === 0) {
+        return null;
+      }
+      return `${key}=${normalised.join(',')}`;
+    })
+    .filter((part): part is string => part !== null);
+
+  return signatureParts.length > 0 ? signatureParts.join(';') : 'none';
+}
+
+function buildFilterOptionsCacheSignature(
+  filters: AnalyticsFilters,
+  queryOptions: AnalyticsQueryOptions | undefined,
+  includeUserFilter: boolean
+): string {
+  const filterSignature = buildFilterValuesCacheSignature(filters, includeUserFilter);
+  const queryOptionsSignature = buildQueryOptionsCacheSignature(queryOptions);
+  return `includeUser=${includeUserFilter ? '1' : '0'}|filters=${filterSignature}|query=${queryOptionsSignature}`;
+}
+
+function optionValues(values: SelectOption[] | string[]): Set<string> {
+  if (values.length === 0) {
+    return new Set<string>();
+  }
+  const mapped =
+    typeof values[0] === 'string' ? (values as string[]) : (values as SelectOption[]).map(value => value.value);
+  return new Set(mapped.map(value => value.trim()).filter(value => value.length > 0));
+}
+
+function canonicaliseFacetFilters(
+  filters: AnalyticsFilters,
+  filterOptions: FilterOptions,
+  changedFilter: FacetFilterKey | undefined,
+  includeUserFilter: boolean
+): AnalyticsFilters {
+  if (!changedFilter || !getFacetFilterKeys(includeUserFilter).includes(changedFilter)) {
+    return filters;
+  }
+
+  const optionsByFacet: Record<FacetFilterKey, Set<string>> = {
+    service: optionValues(filterOptions.services),
+    roleCategory: optionValues(filterOptions.roleCategories),
+    region: optionValues(filterOptions.regions),
+    location: optionValues(filterOptions.locations),
+    taskName: optionValues(filterOptions.taskNames),
+    workType: optionValues(filterOptions.workTypes),
+    user: optionValues(filterOptions.users),
+  };
+
+  const canonicalFilters: AnalyticsFilters = { ...filters };
+  getFacetFilterKeys(includeUserFilter).forEach(key => {
+    if (key === changedFilter) {
+      return;
+    }
+    const values = canonicalFilters[key];
+    if (!values || values.length === 0) {
+      return;
+    }
+    const allowedValues = optionsByFacet[key];
+    const filteredValues = values.filter(value => allowedValues.has(value));
+    if (filteredValues.length === 0) {
+      delete canonicalFilters[key];
+      return;
+    }
+    canonicalFilters[key] = filteredValues;
+  });
+
+  return canonicalFilters;
+}
+
 class FilterService {
-  async fetchFilterOptions(snapshotId: number, queryOptions?: AnalyticsQueryOptions): Promise<FilterOptions> {
+  private async fetchFilterOptionsForFilters(
+    snapshotId: number,
+    filters: AnalyticsFilters,
+    queryOptions: AnalyticsQueryOptions | undefined,
+    includeUserFilter: boolean
+  ): Promise<FilterOptions> {
     const cacheKey = buildSnapshotScopedCacheKey(
       CacheKeys.filterOptions,
       snapshotId,
-      buildQueryOptionsCacheSignature(queryOptions)
+      buildFilterOptionsCacheSignature(filters, queryOptions, includeUserFilter)
     );
     const cached = getCache<FilterOptions>(cacheKey);
     if (cached) {
       return cached;
     }
 
-    const { services, roleCategories, regions, locations, taskNames, workTypes, assignees } =
-      await taskFactsRepository.fetchOverviewFilterOptionsRows(snapshotId, queryOptions);
-    const regionRecords = await regionService.fetchRegions();
-    const courtVenues = await courtVenueService.fetchCourtVenues();
-    const profiles = await caseWorkerProfileService.fetchCaseWorkerProfiles();
-    const userOptions = buildUserOptions(
-      assignees.map(row => row.value),
-      profiles
-    );
+    const [rawOptions, regionRecords, courtVenues, profiles] = await Promise.all([
+      taskFactsRepository.fetchOverviewFilterOptionsRows(snapshotId, {
+        filters,
+        queryOptions,
+        includeUserFilter,
+      }),
+      regionService.fetchRegions(),
+      courtVenueService.fetchCourtVenues(),
+      includeUserFilter ? caseWorkerProfileService.fetchCaseWorkerProfiles() : Promise.resolve([]),
+    ]);
+
+    const { services, roleCategories, regions, locations, taskNames, workTypes, assignees } = rawOptions;
+    const userOptions = includeUserFilter
+      ? buildUserOptions(
+          assignees.map(row => row.value),
+          profiles
+        )
+      : [];
     const regionOptions = buildRegionOptions(
       regions.map(row => row.value),
       regionRecords
@@ -122,6 +230,51 @@ class FilterService {
 
     setCache(cacheKey, options);
     return options;
+  }
+
+  async fetchFilterOptions(snapshotId: number, queryOptions?: AnalyticsQueryOptions): Promise<FilterOptions> {
+    return this.fetchFilterOptionsForFilters(snapshotId, {}, queryOptions, true);
+  }
+
+  async fetchFacetedFilterState(
+    snapshotId: number,
+    filters: AnalyticsFilters,
+    params?: {
+      queryOptions?: AnalyticsQueryOptions;
+      changedFilter?: FacetFilterKey;
+      includeUserFilter?: boolean;
+    }
+  ): Promise<FacetedFilterState> {
+    const includeUserFilter = params?.includeUserFilter ?? true;
+    const facetFilters = pickFacetFilters(filters, { includeUserFilter });
+
+    const initialFilterOptions = await this.fetchFilterOptionsForFilters(
+      snapshotId,
+      facetFilters,
+      params?.queryOptions,
+      includeUserFilter
+    );
+    const canonicalFacetFilters = canonicaliseFacetFilters(
+      facetFilters,
+      initialFilterOptions,
+      params?.changedFilter,
+      includeUserFilter
+    );
+
+    const finalFilterOptions = areFacetFiltersEqual(facetFilters, canonicalFacetFilters, { includeUserFilter })
+      ? initialFilterOptions
+      : await this.fetchFilterOptionsForFilters(
+          snapshotId,
+          canonicalFacetFilters,
+          params?.queryOptions,
+          includeUserFilter
+        );
+
+    const mergedFilters = mergeFacetFilters(filters, canonicalFacetFilters, { includeUserFilter });
+    return {
+      filters: mergedFilters,
+      filterOptions: finalFilterOptions,
+    };
   }
 }
 

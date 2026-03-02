@@ -2,7 +2,6 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { createHash } from 'node:crypto';
 import config from 'config';
-import { Pool } from 'pg';
 
 const { Logger } = require('../../../logging');
 
@@ -147,8 +146,7 @@ export function createPrismaClient(databaseUrl?: string, database: PrismaDatabas
     return client;
   }
 
-  const pool = new Pool({ connectionString: databaseUrl });
-  const adapter = new PrismaPg(pool);
+  const adapter = new PrismaPg({ connectionString: databaseUrl });
 
   if (!shouldLogQueries) {
     return new PrismaClient({ adapter });

@@ -40,6 +40,7 @@
       class="analytics-multiselect"
       data-module="analytics-multiselect"
       data-all-text="{{ allText }}"
+      {% if params.filterKey %}data-filter-key="{{ params.filterKey }}"{% endif %}
     >
       <summary
         class="govuk-select analytics-multiselect__toggle"

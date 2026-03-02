@@ -14,7 +14,7 @@
     "filtersCookieName": "wa-reporting-analytics-filters",
     "filtersCookieMaxAgeDays": 365,
     "snapshotRefreshCronBootstrap": {
-      "enabled": false,
+      "enabled": true,
       "jobName": "analytics_snapshot_refresh_batch",
       "schedule": "*/30 * * * *",
       "targetDatabase": "cft_task_db",
@@ -87,8 +87,7 @@
       "wa-reporting-redis-port": 6379,
       "wa-reporting-redis-access-key": "",
       "wa-reporting-frontend-client-secret": "wa_reporting_frontend_secret",
-      "session-secret": "session-secret",
-      "csrf-cookie-secret": "csrf-cookie-secret",
+      "wa-reporting-frontend-session-secret": "wa-reporting-frontend-session-secret",
       "tm-db-user": "postgres",
       "tm-db-password": "password",
       "crd-db-user": "postgres",

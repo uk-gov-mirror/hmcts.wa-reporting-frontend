@@ -71,8 +71,7 @@ secrets:
     wa-reporting-redis-port: REDIS_PORT
     wa-reporting-redis-access-key: REDIS_KEY
     wa-reporting-frontend-client-secret: WA_REPORTING_FRONTEND_CLIENT_SECRET
-    session-secret: SESSION_SECRET
-    csrf-cookie-secret: CSRF_COOKIE_SECRET
+    wa-reporting-frontend-session-secret: SESSION_SECRET
     tm-db-user: TM_DB_USER
     tm-db-password: TM_DB_PASSWORD
     crd-db-user: CRD_DB_USER

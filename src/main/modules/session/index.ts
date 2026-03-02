@@ -7,7 +7,7 @@ import FileStoreFactory from 'session-file-store';
 import { getRedisClient } from '../redis';
 
 export class AppSession {
-  private readonly sessionSecret: string = config.get('secrets.wa.session-secret');
+  private readonly sessionSecret: string = config.get('secrets.wa.wa-reporting-frontend-session-secret');
   private readonly cookieName: string = config.get('session.appCookie.name');
 
   public enableFor(app: Application): void {

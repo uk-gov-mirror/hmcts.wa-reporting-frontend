@@ -8,7 +8,9 @@
     <h1 class="govuk-heading-xl">User overview</h1>
     <p class="govuk-body-l">Details of current and completed tasks for a specific user</p>
 
-    {% include "analytics/user-overview/user-overview-filters.njk" %}
+    <div data-section="shared-filters">
+      {% include "analytics/user-overview/user-overview-filters.njk" %}
+    </div>
 
     <div data-section="user-overview-assigned" data-ajax-initial="true">
       {% include "analytics/user-overview/partials/assigned-tasks.njk" %}

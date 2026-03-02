@@ -1,7 +1,8 @@
 import { completedComplianceSummaryService } from '../completed/visuals/completedComplianceSummaryService';
 import { emptyOverviewFilterOptions } from '../shared/filters';
+import type { FacetFilterKey } from '../shared/filters';
 import {
-  fetchFilterOptionsWithFallback,
+  fetchFacetedFilterStateWithFallback,
   fetchPublishedSnapshotContext,
   normaliseDateRange,
   settledArrayWithFallback,
@@ -96,6 +97,7 @@ export async function buildUserOverviewPage(
   assignedPage = 1,
   completedPage = 1,
   ajaxSection?: string,
+  changedFilter?: FacetFilterKey,
   requestedSnapshotId?: number
 ): Promise<UserOverviewPageViewModel> {
   const snapshotContext = await fetchPublishedSnapshotContext(requestedSnapshotId);
@@ -259,13 +261,18 @@ export async function buildUserOverviewPage(
   }));
   const allTasks = shouldFetchAssigned ? [...assignedTasksAll, ...completedTasks] : completedTasks;
   const overview = userOverviewService.buildUserOverview(allTasks);
-  const filterOptions = requestedSection
-    ? emptyOverviewFilterOptions()
-    : await fetchFilterOptionsWithFallback(
-        'Failed to fetch user overview filter options from database',
-        snapshotContext.snapshotId,
-        USER_OVERVIEW_QUERY_OPTIONS
-      );
+  const facetedFilterState = requestedSection
+    ? { filters, filterOptions: emptyOverviewFilterOptions() }
+    : await fetchFacetedFilterStateWithFallback({
+        errorMessage: 'Failed to fetch user overview filter options from database',
+        snapshotId: snapshotContext.snapshotId,
+        filters,
+        queryOptions: USER_OVERVIEW_QUERY_OPTIONS,
+        changedFilter,
+        includeUserFilter: true,
+      });
+  const resolvedFilters = facetedFilterState.filters;
+  const filterOptions = facetedFilterState.filterOptions;
 
   const completedByDate: CompletedByDatePoint[] = completedByDateRows.map(row => ({
     date: row.date_key,
@@ -300,7 +307,7 @@ export async function buildUserOverviewPage(
   };
 
   return buildUserOverviewViewModel({
-    filters,
+    filters: resolvedFilters,
     snapshotId: snapshotContext.snapshotId,
     snapshotToken: snapshotContext.snapshotToken,
     overview,

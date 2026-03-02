@@ -5,13 +5,20 @@ import Plotly from 'plotly.js-basic-dist-min';
 import {
   fetchPaginatedSection,
   fetchSectionUpdate,
+  fetchSharedFiltersUpdate,
   fetchSortedSection,
   initAjaxFilterSections,
   initAjaxInitialSections,
 } from './analytics/ajax';
 import type { AjaxDeps } from './analytics/ajax';
 import { renderCharts } from './analytics/charts';
-import { initAutoSubmitForms, initFilterPersistence, initMultiSelects, restoreScrollPosition } from './analytics/forms';
+import {
+  initAutoSubmitForms,
+  initFacetedFilterAutoRefresh,
+  initFilterPersistence,
+  initMultiSelects,
+  restoreScrollPosition,
+} from './analytics/forms';
 import { initOpenByName } from './analytics/outstanding/openByName';
 import { initCriticalTasksPagination, initUserOverviewPagination } from './analytics/pagination';
 import { initMojServerSorting, initMojTotalsRowPinning, initTableExports } from './analytics/tables';
@@ -31,6 +38,9 @@ const rebindSectionBehaviors = (): void => {
   initMojTotalsRowPinning();
   initAjaxFilterSections(fetchSectionUpdateWithDeps);
   initAutoSubmitForms();
+  initMultiSelects();
+  initFilterPersistence();
+  initFacetedFilterAutoRefresh(fetchSharedFiltersWithDeps);
   initCriticalTasksPagination(fetchPaginatedSectionWithDeps);
   initUserOverviewPagination(fetchPaginatedSectionWithDeps);
   void initOpenByName();
@@ -56,6 +66,9 @@ const fetchPaginatedSectionWithDeps = (
   page: string
 ): Promise<void> => fetchPaginatedSection(form, sectionId, ajaxSection, pageParam, page, ajaxDeps);
 
+const fetchSharedFiltersWithDeps = (form: HTMLFormElement, changedFilter: string): Promise<void> =>
+  fetchSharedFiltersUpdate(form, changedFilter, ajaxDeps);
+
 document.addEventListener('DOMContentLoaded', () => {
   renderCharts();
   initTableExports();
@@ -65,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initUserOverviewPagination(fetchPaginatedSectionWithDeps);
   initMultiSelects();
   initFilterPersistence();
+  initFacetedFilterAutoRefresh(fetchSharedFiltersWithDeps);
   void initOpenByName();
   initAjaxFilterSections(fetchSectionUpdateWithDeps);
   initAjaxInitialSections(fetchSectionUpdateWithDeps);

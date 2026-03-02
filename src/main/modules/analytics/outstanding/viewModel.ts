@@ -330,10 +330,10 @@ function buildOutstandingLocationRows(
 ): TableRows {
   return rows
     .map(row => {
-      const cells = [{ text: lookup(row.location, locationLookup) }];
-      if (includeRegion) {
-        cells.push({ text: lookup(row.region, regionLookup) });
-      }
+      const locationText = lookup(row.location, locationLookup);
+      const cells = includeRegion
+        ? [{ text: lookup(row.region, regionLookup) }, { text: locationText }]
+        : [{ text: locationText }];
       return cells.concat([
         buildNumericCell(row.open),
         buildNumericCell(row.urgent),

@@ -7,6 +7,7 @@ import {
   buildUrlEncodedBody,
   fetchPaginatedSection,
   fetchSectionUpdate,
+  fetchSharedFiltersUpdate,
   fetchSortedSection,
   initAjaxFilterSections,
   initAjaxInitialSections,
@@ -304,5 +305,181 @@ describe('analytics ajax', () => {
       resolvers.shift()?.();
     }
     await flushPromises();
+  });
+
+  test('fetchSharedFiltersUpdate updates shared filter section and resets pagination fields', async () => {
+    const form = document.createElement('form');
+    form.dataset.analyticsFilters = 'true';
+    form.action = '/';
+    form.method = 'POST';
+    ['criticalTasksPage', 'assignedPage', 'completedPage'].forEach(name => {
+      const input = document.createElement('input');
+      input.name = name;
+      input.value = '4';
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+
+    const sharedFiltersSection = document.createElement('div');
+    sharedFiltersSection.dataset.section = 'shared-filters';
+    document.body.appendChild(sharedFiltersSection);
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      text: async () => '<div>Shared filters updated</div>',
+    }) as unknown as typeof fetch;
+
+    await fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
+
+    expect(sharedFiltersSection.innerHTML).toContain('Shared filters updated');
+    expect(initAll).toHaveBeenCalledWith({ scope: sharedFiltersSection });
+    expect(initMojAll).toHaveBeenCalledWith({ scope: sharedFiltersSection });
+    expect(ajaxDeps.rebindSectionBehaviors).toHaveBeenCalled();
+    expect(form.querySelector<HTMLInputElement>('input[name="criticalTasksPage"]')?.value).toBe('1');
+    expect(form.querySelector<HTMLInputElement>('input[name="assignedPage"]')?.value).toBe('1');
+    expect(form.querySelector<HTMLInputElement>('input[name="completedPage"]')?.value).toBe('1');
+  });
+
+  test('fetchSharedFiltersUpdate skips duplicate fingerprints and no-ops when section is missing', async () => {
+    const form = document.createElement('form');
+    form.dataset.analyticsFilters = 'true';
+    form.action = '/';
+    document.body.appendChild(form);
+
+    const sharedFiltersSection = document.createElement('div');
+    sharedFiltersSection.dataset.section = 'shared-filters';
+    document.body.appendChild(sharedFiltersSection);
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      text: async () => '<div>Shared filters updated</div>',
+    }) as unknown as typeof fetch;
+
+    await fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
+    await fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    sharedFiltersSection.remove();
+    await fetchSharedFiltersUpdate(form, 'region', ajaxDeps);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('fetchSharedFiltersUpdate handles abort and non-abort failures', async () => {
+    const form = document.createElement('form');
+    form.dataset.analyticsFilters = 'true';
+    form.action = '/';
+    document.body.appendChild(form);
+
+    const sharedFiltersSection = document.createElement('div');
+    sharedFiltersSection.dataset.section = 'shared-filters';
+    document.body.appendChild(sharedFiltersSection);
+
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    global.fetch = jest.fn().mockRejectedValue(new DOMException('Aborted', 'AbortError')) as unknown as typeof fetch;
+    await fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
+    expect(errorSpy).not.toHaveBeenCalled();
+
+    global.fetch = jest.fn().mockRejectedValue(new Error('boom')) as unknown as typeof fetch;
+    await fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
+    expect(errorSpy).toHaveBeenCalledWith('Failed to update shared filters', expect.any(Error));
+
+    errorSpy.mockRestore();
+  });
+
+  test('fetchSharedFiltersUpdate ignores stale aborted responses from earlier requests', async () => {
+    const form = document.createElement('form');
+    form.dataset.analyticsFilters = 'true';
+    form.action = '/';
+    form.method = 'POST';
+    document.body.appendChild(form);
+
+    const sharedFiltersSection = document.createElement('div');
+    sharedFiltersSection.dataset.section = 'shared-filters';
+    document.body.appendChild(sharedFiltersSection);
+
+    let resolveFirst: ((response: { ok: boolean; text: () => Promise<string> }) => void) | undefined;
+    let resolveSecond: ((response: { ok: boolean; text: () => Promise<string> }) => void) | undefined;
+    let callIndex = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      callIndex += 1;
+      return new Promise(resolve => {
+        if (callIndex === 1) {
+          resolveFirst = resolve;
+        } else {
+          resolveSecond = resolve;
+        }
+      });
+    }) as unknown as typeof fetch;
+
+    const firstCall = fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
+    await Promise.resolve();
+    const secondCall = fetchSharedFiltersUpdate(form, 'region', ajaxDeps);
+
+    resolveFirst?.({
+      ok: true,
+      text: async () => '<div>stale-response</div>',
+    });
+    resolveSecond?.({
+      ok: true,
+      text: async () => '<div>latest-response</div>',
+    });
+
+    await Promise.all([firstCall, secondCall]);
+
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(sharedFiltersSection.innerHTML).toContain('latest-response');
+    expect(sharedFiltersSection.innerHTML).not.toContain('stale-response');
+  });
+
+  test('fetchSharedFiltersUpdate skips pagination reset when no analytics filter form exists', async () => {
+    const form = document.createElement('form');
+    form.action = '/';
+    form.method = 'POST';
+    document.body.appendChild(form);
+
+    const sharedFiltersSection = document.createElement('div');
+    sharedFiltersSection.dataset.section = 'shared-filters';
+    document.body.appendChild(sharedFiltersSection);
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      text: async () => '<div>Shared filters updated</div>',
+    }) as unknown as typeof fetch;
+
+    await fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
+    expect(sharedFiltersSection.innerHTML).toContain('Shared filters updated');
+  });
+
+  test('initAjaxInitialSections skips already-bound and sectionless entries and no-ops without form', async () => {
+    const fetchSectionUpdateSpy = jest.fn(async () => {});
+
+    initAjaxInitialSections(fetchSectionUpdateSpy);
+    await flushPromises();
+    expect(fetchSectionUpdateSpy).not.toHaveBeenCalled();
+
+    const filtersForm = document.createElement('form');
+    filtersForm.dataset.analyticsFilters = 'true';
+    document.body.appendChild(filtersForm);
+
+    const alreadyBoundSection = document.createElement('div');
+    alreadyBoundSection.dataset.section = 'already-bound';
+    alreadyBoundSection.dataset.ajaxInitial = 'true';
+    alreadyBoundSection.dataset.ajaxInitialBound = 'true';
+    document.body.appendChild(alreadyBoundSection);
+
+    const missingSectionId = document.createElement('div');
+    missingSectionId.dataset.ajaxInitial = 'true';
+    document.body.appendChild(missingSectionId);
+
+    const validSection = document.createElement('div');
+    validSection.dataset.ajaxInitial = 'true';
+    validSection.dataset.section = 'valid-initial';
+    document.body.appendChild(validSection);
+
+    initAjaxInitialSections(fetchSectionUpdateSpy);
+    await flushPromises();
+    expect(fetchSectionUpdateSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSectionUpdateSpy).toHaveBeenCalledWith(filtersForm, 'valid-initial');
   });
 });

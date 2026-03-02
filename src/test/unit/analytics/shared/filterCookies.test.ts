@@ -308,6 +308,25 @@ describe('filterCookies', () => {
     expect(res.clearCookie).not.toHaveBeenCalled();
   });
 
+  test('applyFilterCookie does not rehydrate stale cookie filters during facet refresh', () => {
+    const encoded = encodeFilterCookie({ service: ['Civil'] }) ?? '';
+    const req = { method: 'POST', signedCookies: { [cookieName]: encoded } } as unknown as Request;
+    const res = { cookie: jest.fn(), clearCookie: jest.fn() } as unknown as Response;
+
+    const filters = applyFilterCookie({
+      req,
+      res,
+      source: { ajaxSection: 'shared-filters', changedFilter: 'service', facetRefresh: '1' },
+      allowedKeys: baseKeys,
+      cookieName,
+      cookieOptions,
+    });
+
+    expect(filters).toEqual({});
+    expect(res.cookie).not.toHaveBeenCalled();
+    expect(res.clearCookie).not.toHaveBeenCalled();
+  });
+
   test('getFilterCookieContext uses configured name and age', () => {
     const context = getFilterCookieContext();
     expect(context.cookieName).toBe('analytics-filters');

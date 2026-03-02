@@ -26,4 +26,13 @@ describe('tasksDueByPriorityChartService', () => {
       { date: '2024-02-02', urgent: 0, high: 0, medium: 0, low: 0 },
     ]);
   });
+
+  test('propagates repository errors', async () => {
+    const filters = { region: ['North'] };
+    const error = new Error('db error');
+    (taskFactsRepository.fetchTasksDuePriorityRows as jest.Mock).mockRejectedValue(error);
+
+    await expect(tasksDueByPriorityChartService.fetchTasksDueByPriority(snapshotId, filters)).rejects.toBe(error);
+    expect(taskFactsRepository.fetchTasksDuePriorityRows).toHaveBeenCalledWith(snapshotId, filters);
+  });
 });

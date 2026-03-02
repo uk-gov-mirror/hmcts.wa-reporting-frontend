@@ -60,6 +60,8 @@ Key behaviors:
 - Initial `data-ajax-initial` section refreshes are queued with a concurrency limit of 2 in-flight requests.
 - Analytics section handlers should only fetch data needed for the requested section (for example, `/users` completed section does not fetch completed-by-date rows unless the completed-by-date section is requested).
 - Filter forms with `data-ajax-section` can refresh a single page section without a full reload.
+- Shared-filter faceting uses section-scoped AJAX refresh of `data-section="shared-filters"` with `ajaxSection=shared-filters`, `changedFilter`, and `facetRefresh=1`.
+- Faceted shared-filter refresh is triggered when a shared-filter multi-select closes after a selection change.
 - Shared dashboard filter submissions clear any active URL hash (`#...`) before full-page navigation to avoid anchor-based scroll jumps after reload.
 - "Reset filters" is submitted as form data (`resetFilters=1`) rather than a query-string navigation, so reset does not leave `resetFilters` in the URL.
 - Server-side sorting uses hidden inputs and submits a filtered form to fetch sorted data.
@@ -95,8 +97,8 @@ sequenceDiagram
 - A custom scroll/pan UI is used for large category lists (open tasks by name and completed tasks by name).
 
 ## Styling (SCSS)
-- GOV.UK and MOJ frontends are imported and configured.
-- Page width is set to 1400px.
+- GOV.UK frontend is configured via Sass modules (`@use 'govuk-frontend/dist/govuk/index'`) and MOJ frontend styles are loaded via `@use '@ministryofjustice/frontend'` (MOJ v9).
+- Page width is set to 1600px via `$govuk-page-width`.
 - CSS variables define chart colors aligned with GOV.UK palette.
 - Shared chart colours are defined in `src/main/modules/analytics/shared/charts/colors.ts` using named colour keys (for example `purple`, `blueDark`, `blueLight`, `greyLight`, `blue`, `grey`, `green`).
 - Priority bucket charts explicitly map Urgent/High/Medium/Low to `purple`/`blueDark`/`blueLight`/`greyLight`; non-priority chart semantics reuse the same blue/grey/green palette family.

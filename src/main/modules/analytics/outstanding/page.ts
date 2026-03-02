@@ -1,7 +1,8 @@
 import { emptyOverviewFilterOptions } from '../shared/filters';
+import type { FacetFilterKey } from '../shared/filters';
 import { OutstandingSort } from '../shared/outstandingSort';
 import {
-  fetchFilterOptionsWithFallback,
+  fetchFacetedFilterStateWithFallback,
   fetchPublishedSnapshotContext,
   settledArrayWithFallback,
   settledValueWithError,
@@ -59,6 +60,7 @@ export async function buildOutstandingPage(
   sort: OutstandingSort,
   criticalTasksPage = 1,
   ajaxSection?: string,
+  changedFilter?: FacetFilterKey,
   requestedSnapshotId?: number
 ): Promise<OutstandingPageViewModel> {
   const snapshotContext = await fetchPublishedSnapshotContext(requestedSnapshotId);
@@ -169,12 +171,17 @@ export async function buildOutstandingPage(
   const priorityDonutChart = buildPriorityDonutChart(summary);
   const assignmentDonutChart = buildAssignmentDonutChart(summary);
 
-  const filterOptions = requestedSection
-    ? emptyOverviewFilterOptions()
-    : await fetchFilterOptionsWithFallback(
-        'Failed to fetch outstanding filter options from database',
-        snapshotContext.snapshotId
-      );
+  const facetedFilterState = requestedSection
+    ? { filters, filterOptions: emptyOverviewFilterOptions() }
+    : await fetchFacetedFilterStateWithFallback({
+        errorMessage: 'Failed to fetch outstanding filter options from database',
+        snapshotId: snapshotContext.snapshotId,
+        filters,
+        changedFilter,
+        includeUserFilter: false,
+      });
+  const resolvedFilters = facetedFilterState.filters;
+  const filterOptions = facetedFilterState.filterOptions;
   const needsRegionDescriptions = shouldFetch('open-by-region-location');
   const needsLocationDescriptions = shouldFetch('open-by-region-location') || shouldFetch('criticalTasks');
   const [regionDescriptionsResult, locationDescriptionsResult] = await Promise.allSettled([
@@ -194,7 +201,7 @@ export async function buildOutstandingPage(
   const allTasks: Task[] = [];
 
   return buildOutstandingViewModel({
-    filters,
+    filters: resolvedFilters,
     snapshotId: snapshotContext.snapshotId,
     snapshotToken: snapshotContext.snapshotToken,
     filterOptions,

@@ -183,11 +183,19 @@ function isResetRequest(source: Record<string, unknown>): boolean {
   return false;
 }
 
-function isFilterFormSubmission(req: Request, source: Record<string, unknown>): boolean {
-  if (req.method !== 'POST') {
-    return false;
+function isAjaxRequest(source: Record<string, unknown>): boolean {
+  const ajaxSection = source.ajaxSection;
+  if (typeof ajaxSection === 'string' && ajaxSection.trim().length > 0) {
+    return true;
   }
-  return typeof source.ajaxSection !== 'string';
+  if (source.facetRefresh === '1' || source.facetRefresh === 1) {
+    return true;
+  }
+  return false;
+}
+
+function isFacetRefreshRequest(source: Record<string, unknown>): boolean {
+  return source.facetRefresh === '1' || source.facetRefresh === 1;
 }
 
 export function applyFilterCookie(params: {
@@ -208,20 +216,31 @@ export function applyFilterCookie(params: {
   const { filters: parsedFilters } = validateFilters(source);
   const scopedFilters = pickFilters(parsedFilters, allowedKeys);
   const requestHasFilters = hasFilters(scopedFilters);
+  const ajaxRequest = isAjaxRequest(source);
+  const facetRefreshRequest = isFacetRefreshRequest(source);
 
-  if (requestHasFilters) {
-    const encoded = encodeFilterCookie(scopedFilters);
-    if (encoded) {
-      res.cookie(cookieName, encoded, cookieOptions);
+  if (req.method === 'POST' && !ajaxRequest) {
+    if (requestHasFilters) {
+      const encoded = encodeFilterCookie(scopedFilters);
+      if (encoded) {
+        res.cookie(cookieName, encoded, cookieOptions);
+      } else {
+        res.clearCookie(cookieName, cookieOptions);
+      }
     } else {
       res.clearCookie(cookieName, cookieOptions);
     }
     return scopedFilters;
   }
 
-  if (isFilterFormSubmission(req, source)) {
-    res.clearCookie(cookieName, cookieOptions);
-    return {};
+  if (requestHasFilters) {
+    return scopedFilters;
+  }
+
+  // Facet refresh requests represent authoritative in-form state.
+  // If no filters are present, avoid falling back to stale persisted cookie values.
+  if (facetRefreshRequest) {
+    return scopedFilters;
   }
 
   const rawCookie = getSignedCookieValue(req, cookieName);

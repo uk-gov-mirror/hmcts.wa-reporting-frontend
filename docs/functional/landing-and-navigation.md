@@ -34,6 +34,9 @@ The shared filter block appears on all dashboard pages. It provides multi-select
 
 Behavior:
 - Filters are multi-select dropdowns with search and "select all".
+- Shared filters are faceted: each filter's available options are constrained by the current selections in the other shared filters.
+- When selections change inside a shared-filter multi-select, closing that dropdown triggers an AJAX refresh of the shared-filter section only (no full-page navigation).
+- During facet refresh, the filter being edited remains authoritative while other shared filters are canonicalised to compatible values; incompatible selections are removed.
 - Selecting all items is normalized to "All" to avoid storing large filter values.
 - Filters can be reset via a "Reset filters" button which clears persisted filter cookies.
 - Reset uses a form submit flag (`resetFilters=1`) and does not persist a `resetFilters` query parameter in the browser URL.

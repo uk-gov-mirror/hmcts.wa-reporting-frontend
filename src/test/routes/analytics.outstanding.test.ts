@@ -62,6 +62,9 @@ describe('Analytics outstanding route', () => {
       expect(response.text).toMatch(
         /data-export-filename="outstanding-open-by-name\.csv"[\s\S]*?<th[^>]*aria-sort="descending"[^>]*>\s*Urgent\s*<\/th>/
       );
+      expect(response.text).toMatch(
+        /data-export-filename="outstanding-by-location-region\.csv"[\s\S]*?<th[^>]*aria-sort="ascending"[^>]*>\s*Region\s*<\/th>[\s\S]*?<th[^>]*aria-sort="none"[^>]*>\s*Location\s*<\/th>/
+      );
       expect(response.text).toContain('name="resetFilters"');
       expect(response.text).not.toContain('href="/outstanding?resetFilters=1"');
     }, 15000);

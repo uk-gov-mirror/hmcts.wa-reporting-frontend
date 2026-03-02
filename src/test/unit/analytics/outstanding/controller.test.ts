@@ -75,6 +75,7 @@ describe('outstandingController', () => {
         criticalTasks: { by: 'dueDate', dir: 'asc' },
       },
       1,
+      undefined,
       undefined
     );
     expect(getAjaxPartialTemplate).not.toHaveBeenCalled();
@@ -112,6 +113,7 @@ describe('outstandingController', () => {
         criticalTasks: { by: 'dueDate', dir: 'asc' },
       },
       3,
+      undefined,
       undefined
     );
     expect(getAjaxPartialTemplate).not.toHaveBeenCalled();
@@ -147,6 +149,7 @@ describe('outstandingController', () => {
       },
       2,
       'criticalTasks',
+      undefined,
       55
     );
     expect(getAjaxPartialTemplate).toHaveBeenCalled();

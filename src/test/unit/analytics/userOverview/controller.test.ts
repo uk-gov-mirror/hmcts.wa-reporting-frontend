@@ -82,6 +82,7 @@ describe('userOverviewController', () => {
       },
       1,
       1,
+      undefined,
       undefined
     );
     expect(getAjaxPartialTemplate).not.toHaveBeenCalled();
@@ -125,6 +126,7 @@ describe('userOverviewController', () => {
       },
       2,
       3,
+      undefined,
       undefined
     );
     expect(getAjaxPartialTemplate).not.toHaveBeenCalled();
@@ -166,6 +168,7 @@ describe('userOverviewController', () => {
       2,
       1,
       'assigned',
+      undefined,
       77
     );
     expect(getAjaxPartialTemplate).toHaveBeenCalled();

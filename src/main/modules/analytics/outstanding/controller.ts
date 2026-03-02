@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 
 import { BASE_FILTER_KEYS, applyFilterCookieFromConfig } from '../shared/filterCookies';
+import { parseChangedFacetFilter } from '../shared/filters';
 import { parseOutstandingSort } from '../shared/outstandingSort';
 import { parseSnapshotTokenInput } from '../shared/pageUtils';
 import { getAjaxPartialTemplate, isAjaxRequest } from '../shared/partials';
@@ -12,6 +13,7 @@ import { buildOutstandingPage } from './page';
 class OutstandingController {
   private readonly allowedFilterKeys: (keyof AnalyticsFilters)[] = [...BASE_FILTER_KEYS];
   private readonly partials = {
+    'shared-filters': 'analytics/outstanding/outstanding-filters',
     criticalTasks: 'analytics/outstanding/partials/critical-tasks',
     'open-tasks-summary': 'analytics/outstanding/partials/open-tasks-summary',
     'open-tasks-table': 'analytics/outstanding/partials/open-tasks-table',
@@ -34,11 +36,19 @@ class OutstandingController {
       const sort = parseOutstandingSort(source);
       const criticalTasksPage = parseCriticalTasksPage(source.criticalTasksPage);
       const ajaxSection = typeof source.ajaxSection === 'string' ? source.ajaxSection : undefined;
+      const changedFilter = parseChangedFacetFilter(source.changedFilter, { includeUserFilter: false });
       const requestedSnapshotId = parseSnapshotTokenInput(source.snapshotToken);
       const viewModel =
         requestedSnapshotId !== undefined
-          ? await buildOutstandingPage(filters, sort, criticalTasksPage, ajaxSection, requestedSnapshotId)
-          : await buildOutstandingPage(filters, sort, criticalTasksPage, ajaxSection);
+          ? await buildOutstandingPage(
+              filters,
+              sort,
+              criticalTasksPage,
+              ajaxSection,
+              changedFilter,
+              requestedSnapshotId
+            )
+          : await buildOutstandingPage(filters, sort, criticalTasksPage, ajaxSection, changedFilter);
       if (isAjaxRequest(req)) {
         const template = getAjaxPartialTemplate({
           source,

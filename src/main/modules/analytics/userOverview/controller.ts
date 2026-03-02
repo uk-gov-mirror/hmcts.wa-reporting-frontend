@@ -1,6 +1,7 @@
 import { Request, Response, Router } from 'express';
 
 import { BASE_FILTER_KEYS, applyFilterCookieFromConfig } from '../shared/filterCookies';
+import { parseChangedFacetFilter } from '../shared/filters';
 import { parseSnapshotTokenInput } from '../shared/pageUtils';
 import { getAjaxPartialTemplate, isAjaxRequest } from '../shared/partials';
 import { AnalyticsFilters } from '../shared/types';
@@ -17,6 +18,7 @@ class UserOverviewController {
     'completedTo',
   ];
   private readonly partials = {
+    'shared-filters': 'analytics/user-overview/user-overview-filters',
     assigned: 'analytics/user-overview/partials/assigned-tasks',
     completed: 'analytics/user-overview/partials/completed-tasks',
     'user-overview-assigned': 'analytics/user-overview/partials/assigned-tasks',
@@ -39,11 +41,20 @@ class UserOverviewController {
       const assignedPage = parseAssignedPage(source.assignedPage);
       const completedPage = parseCompletedPage(source.completedPage);
       const ajaxSection = typeof source.ajaxSection === 'string' ? source.ajaxSection : undefined;
+      const changedFilter = parseChangedFacetFilter(source.changedFilter, { includeUserFilter: true });
       const requestedSnapshotId = parseSnapshotTokenInput(source.snapshotToken);
       const viewModel =
         requestedSnapshotId !== undefined
-          ? await buildUserOverviewPage(filters, sort, assignedPage, completedPage, ajaxSection, requestedSnapshotId)
-          : await buildUserOverviewPage(filters, sort, assignedPage, completedPage, ajaxSection);
+          ? await buildUserOverviewPage(
+              filters,
+              sort,
+              assignedPage,
+              completedPage,
+              ajaxSection,
+              changedFilter,
+              requestedSnapshotId
+            )
+          : await buildUserOverviewPage(filters, sort, assignedPage, completedPage, ajaxSection, changedFilter);
       if (isAjaxRequest(req)) {
         const template = getAjaxPartialTemplate({
           source,
