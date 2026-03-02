@@ -124,7 +124,7 @@ describe('snapshotRefreshCronBootstrap', () => {
     expect(loggerInfoMock).toHaveBeenCalledWith(
       'Registered snapshot refresh cron job at startup',
       expect.objectContaining({
-        jobId: 42,
+        jobId: '42',
         jobName: 'analytics_snapshot_refresh_batch',
         schedule: '*/30 * * * *',
         targetDatabase: 'cft_task_db',
@@ -202,6 +202,27 @@ describe('snapshotRefreshCronBootstrap', () => {
     );
   });
 
+  test('logs success with stringified job id when scheduler returns bigint', async () => {
+    const { bootstrapSnapshotRefreshCron } = loadModule(defaultBootstrapConfig);
+
+    queryRawMock
+      .mockResolvedValueOnce([{ acquired: true }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ jobid: BigInt(42) }])
+      .mockResolvedValueOnce([]);
+
+    await bootstrapSnapshotRefreshCron();
+
+    expect(loggerInfoMock).toHaveBeenCalledWith(
+      'Registered snapshot refresh cron job at startup',
+      expect.objectContaining({
+        jobId: '42',
+        jobName: 'analytics_snapshot_refresh_batch',
+      })
+    );
+    expect(loggerErrorMock).not.toHaveBeenCalled();
+  });
+
   test('logs and continues when schedule registration fails and still cleans up resources', async () => {
     const { bootstrapSnapshotRefreshCron } = loadModule(defaultBootstrapConfig);
 
@@ -220,11 +241,67 @@ describe('snapshotRefreshCronBootstrap', () => {
         schedule: '*/30 * * * *',
         targetDatabase: 'cft_task_db',
         cronDatabase: 'postgres',
+        errorName: 'Error',
+        errorMessage: 'schedule failed',
+        errorStack: expect.any(String),
       })
     );
     expect(queryRawMock).toHaveBeenCalledTimes(4);
     const unlockQuery = queryRawMock.mock.calls[3][0];
     expect(unlockQuery.strings.join('')).toContain('pg_advisory_unlock');
+    expect(disconnectMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('logs rich error metadata when schedule registration throws a database-style error', async () => {
+    const { bootstrapSnapshotRefreshCron } = loadModule(defaultBootstrapConfig);
+    const scheduleError = Object.assign(new Error('schedule failed'), {
+      code: '42501',
+      detail: 'permission denied for schema cron',
+      hint: 'Grant usage on schema cron',
+      meta: { target: 'cft_task_db' },
+    });
+
+    queryRawMock
+      .mockResolvedValueOnce([{ acquired: true }])
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce(scheduleError)
+      .mockResolvedValueOnce([]);
+
+    await bootstrapSnapshotRefreshCron();
+
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      'Failed to bootstrap snapshot refresh cron registration',
+      expect.objectContaining({
+        jobName: 'analytics_snapshot_refresh_batch',
+        errorName: 'Error',
+        errorMessage: 'schedule failed',
+        errorCode: '42501',
+        errorDetail: 'permission denied for schema cron',
+        errorHint: 'Grant usage on schema cron',
+        errorMeta: { target: 'cft_task_db' },
+      })
+    );
+    expect(disconnectMock).toHaveBeenCalledTimes(1);
+  });
+
+  test('logs a non-error thrown value in the error payload', async () => {
+    const { bootstrapSnapshotRefreshCron } = loadModule(defaultBootstrapConfig);
+
+    queryRawMock
+      .mockResolvedValueOnce([{ acquired: true }])
+      .mockResolvedValueOnce([])
+      .mockRejectedValueOnce('schedule failed')
+      .mockResolvedValueOnce([]);
+
+    await bootstrapSnapshotRefreshCron();
+
+    expect(loggerErrorMock).toHaveBeenCalledWith(
+      'Failed to bootstrap snapshot refresh cron registration',
+      expect.objectContaining({
+        jobName: 'analytics_snapshot_refresh_batch',
+        error: 'schedule failed',
+      })
+    );
     expect(disconnectMock).toHaveBeenCalledTimes(1);
   });
 

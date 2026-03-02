@@ -26,6 +26,30 @@ type ScheduleRow = {
   jobid: bigint | number | string;
 };
 
+type ErrorWithMetadata = Error & {
+  code?: string | number;
+  detail?: string;
+  hint?: string;
+  meta?: unknown;
+};
+
+function getErrorLogPayload(error: unknown): Record<string, unknown> {
+  if (!(error instanceof Error)) {
+    return { error };
+  }
+
+  const typedError = error as ErrorWithMetadata;
+  return {
+    errorName: typedError.name,
+    errorMessage: typedError.message,
+    errorStack: typedError.stack,
+    ...(typedError.code === undefined ? {} : { errorCode: typedError.code }),
+    ...(typedError.detail === undefined ? {} : { errorDetail: typedError.detail }),
+    ...(typedError.hint === undefined ? {} : { errorHint: typedError.hint }),
+    ...(typedError.meta === undefined ? {} : { errorMeta: typedError.meta }),
+  };
+}
+
 function getCronBootstrapConfig(): SnapshotRefreshCronBootstrapConfig {
   return config.get<SnapshotRefreshCronBootstrapConfig>('analytics.snapshotRefreshCronBootstrap');
 }
@@ -79,7 +103,7 @@ export async function bootstrapSnapshotRefreshCron(): Promise<void> {
         ${bootstrapConfig.targetDatabase}
       ) AS jobid
     `);
-    const jobId = scheduleRows[0]?.jobid;
+    const jobId = scheduleRows[0]?.jobid?.toString();
 
     logger.info('Registered snapshot refresh cron job at startup', {
       jobId,
@@ -94,7 +118,7 @@ export async function bootstrapSnapshotRefreshCron(): Promise<void> {
       schedule: bootstrapConfig.schedule,
       targetDatabase: bootstrapConfig.targetDatabase,
       cronDatabase: bootstrapConfig.cronDatabase,
-      error,
+      ...getErrorLogPayload(error),
     });
   } finally {
     if (lockAcquired) {

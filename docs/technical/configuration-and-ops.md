@@ -144,6 +144,7 @@ Keep the Key Vault secret lists in `charts/wa-reporting-frontend/values.yaml` an
 - When `analytics.snapshotRefreshCronBootstrap.enabled=true`, app startup attempts to register the snapshot refresh schedule via `cron.schedule_in_database(...)`.
 - Registration uses TM connection credentials and host settings, with the database name overridden to `analytics.snapshotRefreshCronBootstrap.cronDatabase` (default `postgres`).
 - Registration is non-fatal: startup logs failures and continues serving requests.
+- Failure logs include structured error fields (`errorName`, `errorMessage`, optional `errorCode`/`errorDetail`/`errorHint`/`errorMeta`, and `errorStack`) to aid diagnosis in JSON logging mode.
 - Startup registration is idempotent: existing jobs matching `jobName` and `targetDatabase` are unscheduled before registering the configured definition.
 - Prerequisites:
   - `pg_cron` extension and `cron` schema/functions are available in `cronDatabase`.
