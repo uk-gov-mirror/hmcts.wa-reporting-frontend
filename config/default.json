@@ -23,9 +23,9 @@
   },
   "logging": {
     "prismaQueryTimings": {
-      "enabled": false,
-      "minDurationMs": 0,
-      "slowQueryThresholdMs": 0,
+      "enabled": true,
+      "minDurationMs": 500,
+      "slowQueryThresholdMs": 500,
       "includeQueryPreview": false,
       "queryPreviewMaxLength": 240
     }
