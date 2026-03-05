@@ -68,6 +68,27 @@ describe('Analytics completed routes', () => {
       expect(response.headers['content-type']).toContain('text/html');
       expect(response.text).toContain('Completed tasks');
     });
+
+    test('should escape chart config labels containing apostrophes', async () => {
+      const custom = await buildRouteTestServer({
+        analyticsMocks: {
+          completedByNameRows: [{ task_name: "Judge's review", total: 2, within: 1 }],
+        },
+      });
+
+      try {
+        const response = await request(custom.server)
+          .get('/completed?ajaxSection=completed-by-name')
+          .set('X-Requested-With', 'fetch')
+          .expect(200);
+
+        expect(response.headers['content-type']).toContain('text/html');
+        expect(response.text).toContain('Completed tasks by name');
+        expect(response.text).toMatch(/data-chart-config='[^']*Judge(?:&#39;|&#x27;)s review/);
+      } finally {
+        await custom.close();
+      }
+    });
   });
 
   describe('on POST', () => {

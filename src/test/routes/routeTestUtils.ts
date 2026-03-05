@@ -6,6 +6,7 @@ type RouteTestServer = {
 };
 
 type RouteAnalyticsMocks = {
+  completedByNameRows?: unknown[];
   userOverviewAssignedTaskRows?: unknown[];
   userOverviewCompletedTaskRows?: unknown[];
   userOverviewAssignedTaskCount?: number;
@@ -52,6 +53,7 @@ function mockOidcMiddleware(): void {
 }
 
 function mockAnalyticsRepositories(analyticsMocks: RouteAnalyticsMocks = {}): void {
+  const completedByNameRows = analyticsMocks.completedByNameRows ?? [];
   const userOverviewAssignedTaskRows = analyticsMocks.userOverviewAssignedTaskRows ?? [];
   const userOverviewCompletedTaskRows = analyticsMocks.userOverviewCompletedTaskRows ?? [];
   const userOverviewAssignedTaskCount = analyticsMocks.userOverviewAssignedTaskCount ?? 0;
@@ -80,7 +82,7 @@ function mockAnalyticsRepositories(analyticsMocks: RouteAnalyticsMocks = {}): vo
       fetchCompletedSummaryRows: jest.fn().mockResolvedValue([]),
       fetchCompletedTimelineRows: jest.fn().mockResolvedValue([]),
       fetchCompletedProcessingHandlingTimeRows: jest.fn().mockResolvedValue([]),
-      fetchCompletedByNameRows: jest.fn().mockResolvedValue([]),
+      fetchCompletedByNameRows: jest.fn().mockResolvedValue(completedByNameRows),
       fetchCompletedByLocationRows: jest.fn().mockResolvedValue([]),
       fetchCompletedByRegionRows: jest.fn().mockResolvedValue([]),
       fetchUserOverviewCompletedTaskCount: jest.fn().mockResolvedValue(userOverviewCompletedTaskCount),

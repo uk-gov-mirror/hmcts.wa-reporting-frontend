@@ -5,7 +5,7 @@
 <h2 class="govuk-heading-m">Average wait time</h2>
 <p class="govuk-body analytics-chart-intro">Average wait time for assigned tasks. Wait time is the number of days between task creation and assignment</p>
 {% set waitTimeChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.waitTime | safe }}'></div>
+  <div class="analytics-chart" data-chart-config='{{ charts.waitTime }}'></div>
 {% endset %}
 {% set waitTimeTableHtml %}
   <div class="analytics-tab-panel">

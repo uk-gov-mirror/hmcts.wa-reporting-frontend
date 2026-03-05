@@ -22,6 +22,14 @@ const flushPromises = async (): Promise<void> => {
   await new Promise(resolve => setTimeout(resolve, 0));
 };
 
+const escapeHtmlAttribute = (value: string): string =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/'/g, '&#39;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
 describe('analytics charts', () => {
   const originalBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
 
@@ -78,6 +86,35 @@ describe('analytics charts', () => {
     expect(modebar.getAttribute('aria-label')).toBe('Download plot');
     expect(chartNode.dataset.scrollPanBound).toBe('true');
     expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  test('renders charts when HTML-escaped chart config contains apostrophes in chart labels', async () => {
+    const taskName = "Judge's review";
+    const chartConfig = JSON.stringify({
+      data: [
+        {
+          x: [3],
+          y: [taskName],
+          customdata: [taskName],
+          type: 'bar',
+          orientation: 'h',
+          hovertemplate: '<b>%{customdata}</b><br>%{x} tasks<extra></extra>',
+        },
+      ],
+    });
+
+    document.body.innerHTML = `<div class="analytics-chart" data-chart-config='${escapeHtmlAttribute(chartConfig)}'></div>`;
+
+    const chartNode = document.querySelector<HTMLElement>('.analytics-chart');
+    expect(chartNode?.dataset.chartConfig).toBe(chartConfig);
+
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    renderCharts();
+    await flushPromises();
+
+    expect(Plotly.newPlot).toHaveBeenCalledTimes(1);
+    expect(errorSpy).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 
