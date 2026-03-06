@@ -16,7 +16,7 @@
     "snapshotRefreshCronBootstrap": {
       "enabled": true,
       "jobName": "analytics_snapshot_refresh_batch",
-      "schedule": "15 * * * *",
+      "schedule": "15,45 * * * *",
       "targetDatabase": "cft_task_db",
       "cronDatabase": "postgres"
     }
