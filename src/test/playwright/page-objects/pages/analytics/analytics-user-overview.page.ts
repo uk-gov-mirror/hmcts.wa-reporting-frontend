@@ -1,6 +1,7 @@
 import { Locator, Page } from '@playwright/test';
 
 import { buildUrl } from '../../../config';
+import { waitForPlotlyChart } from './plotlyChart';
 
 export class AnalyticsUserOverviewPage {
   constructor(private readonly page: Page) {}
@@ -11,5 +12,13 @@ export class AnalyticsUserOverviewPage {
 
   get heading(): Locator {
     return this.page.getByRole('heading', { name: 'User overview', level: 1 });
+  }
+
+  get completedByDateChart(): Locator {
+    return this.page.locator('#completedByDateChart .analytics-chart');
+  }
+
+  async waitForCompletedByDateChart(): Promise<void> {
+    await waitForPlotlyChart(this.completedByDateChart);
   }
 }

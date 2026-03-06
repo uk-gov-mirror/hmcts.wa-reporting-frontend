@@ -45,6 +45,8 @@ describe('Analytics completed routes', () => {
       expect(response.text).toMatch(
         /data-export-filename="completed-task-audit\.csv"[\s\S]*?<th[^>]*aria-sort="descending"[^>]*>\s*Completed date\s*<\/th>/
       );
+      expect(response.text).toContain('autoFitYAxesOnXZoom');
+      expect(response.text).toContain('stacked-bar-and-line-max');
       expect(response.text).toContain('Outcome');
     });
 

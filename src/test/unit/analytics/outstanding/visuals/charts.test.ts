@@ -36,6 +36,9 @@ describe('outstanding charts', () => {
     const parsed = JSON.parse(chart) as {
       data: { x: string[]; y: number[]; name: string }[];
       layout: { xaxis: { title: { text: string } }; yaxis: { title: { text: string } } };
+      behaviors: {
+        autoFitYAxesOnXZoom: { axis: string; strategy: string; paddingRatio: number; minUpperBound: number }[];
+      };
     };
 
     expect(parsed.data[0].name).toBe('Assigned');
@@ -43,6 +46,9 @@ describe('outstanding charts', () => {
     expect(parsed.data[0].y).toEqual([3]);
     expect(parsed.layout.xaxis.title.text).toBe('Created date');
     expect(parsed.layout.yaxis.title.text).toBe('Tasks');
+    expect(parsed.behaviors.autoFitYAxesOnXZoom).toEqual([
+      { axis: 'y', strategy: 'stacked-bar-sum', paddingRatio: 0.05, minUpperBound: 1 },
+    ]);
   });
 
   test('buildWaitTimeChart returns plotly config', () => {
@@ -53,6 +59,9 @@ describe('outstanding charts', () => {
     const parsed = JSON.parse(chart) as {
       data: { x: string[]; y: number[]; name: string }[];
       layout: { xaxis: { title: { text: string } }; yaxis: { title: { text: string } } };
+      behaviors: {
+        autoFitYAxesOnXZoom: { axis: string; strategy: string; paddingRatio: number; minUpperBound: number }[];
+      };
     };
 
     expect(parsed.data[0].name).toBe('Average wait (days)');
@@ -60,6 +69,9 @@ describe('outstanding charts', () => {
     expect(parsed.data[0].y).toEqual([2.5]);
     expect(parsed.layout.xaxis.title.text).toBe('Assigned date');
     expect(parsed.layout.yaxis.title.text).toBe('Days');
+    expect(parsed.behaviors.autoFitYAxesOnXZoom).toEqual([
+      { axis: 'y', strategy: 'line-extents', paddingRatio: 0.05, minUpperBound: 1 },
+    ]);
   });
 
   test('buildTasksDueChart returns plotly config', () => {
@@ -68,12 +80,18 @@ describe('outstanding charts', () => {
     const parsed = JSON.parse(chart) as {
       data: { name: string; y: number[] }[];
       layout: { xaxis: { title: { text: string } }; yaxis: { title: { text: string } } };
+      behaviors: {
+        autoFitYAxesOnXZoom: { axis: string; strategy: string; paddingRatio: number; minUpperBound: number }[];
+      };
     };
 
     expect(parsed.data.map(series => series.name)).toEqual(['Open', 'Completed']);
     expect(parsed.data[0].y).toEqual([2]);
     expect(parsed.layout.xaxis.title.text).toBe('Due date');
     expect(parsed.layout.yaxis.title.text).toBe('Tasks');
+    expect(parsed.behaviors.autoFitYAxesOnXZoom).toEqual([
+      { axis: 'y', strategy: 'stacked-bar-sum', paddingRatio: 0.05, minUpperBound: 1 },
+    ]);
   });
 
   test('buildTasksDuePriorityChart returns plotly config', () => {

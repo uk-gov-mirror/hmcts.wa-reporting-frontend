@@ -16,6 +16,9 @@ describe('time series chart builders', () => {
     expect(parsed.layout.legend.orientation).toBe('v');
     expect(parsed.layout.legend.traceorder).toBe('normal');
     expect(parsed.layout.yaxis.range).toEqual([0, 10]);
+    expect(parsed.behaviors.autoFitYAxesOnXZoom).toEqual([
+      { axis: 'y', strategy: 'stacked-bar-sum', paddingRatio: 0.05, minUpperBound: 1 },
+    ]);
   });
 
   test('applies shared axis titles to stacked bar charts', () => {
@@ -40,6 +43,10 @@ describe('time series chart builders', () => {
     expect(parsed.data[1].type).toBe('scatter');
     expect(parsed.data[1].mode).toBe('lines');
     expect(parsed.data[1].yaxis).toBe('y2');
+    expect(parsed.behaviors.autoFitYAxesOnXZoom).toEqual([
+      { axis: 'y', strategy: 'stacked-bar-sum', paddingRatio: 0.05, minUpperBound: 1 },
+      { axis: 'y2', strategy: 'line-extents', paddingRatio: 0.05, minUpperBound: 1 },
+    ]);
   });
 
   test('uses default line mode when none is supplied', () => {
@@ -50,6 +57,9 @@ describe('time series chart builders', () => {
     const parsed = JSON.parse(chart);
 
     expect(parsed.data[1].mode).toBe('lines');
+    expect(parsed.behaviors.autoFitYAxesOnXZoom).toEqual([
+      { axis: 'y', strategy: 'stacked-bar-and-line-max', paddingRatio: 0.05, minUpperBound: 1 },
+    ]);
   });
 
   test('builds line series with default markers', () => {
@@ -61,6 +71,9 @@ describe('time series chart builders', () => {
     expect(parsed.data[0].type).toBe('scatter');
     expect(parsed.data[0].mode).toBe('lines+markers');
     expect(parsed.layout.margin.t).toBe(10);
+    expect(parsed.behaviors.autoFitYAxesOnXZoom).toEqual([
+      { axis: 'y', strategy: 'line-extents', paddingRatio: 0.05, minUpperBound: 1 },
+    ]);
   });
 
   test('builds line series with explicit line mode', () => {

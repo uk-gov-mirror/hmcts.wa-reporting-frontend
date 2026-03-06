@@ -89,11 +89,17 @@ sequenceDiagram
   - Modebar without lasso/select/auto-scale
   - Autosized axes with compact margins
   - Shared time-series helpers (`src/main/modules/analytics/shared/charts/timeSeries.ts`) set date-axis formatting and support common axis-title configuration (`axisTitles`) so dashboards can keep chart labels aligned with table terminology.
+  - Shared time-series helpers also emit `behaviors.autoFitYAxesOnXZoom` metadata in each serialized Plotly config so the frontend can re-fit y-axes when the visible x-axis date range changes.
 - Chart types:
   - Donut charts (priority and compliance)
   - Stacked bar time series
   - Stacked horizontal bar charts
   - Line charts with optional standard deviation bands
+- Time-series auto-fit behavior:
+  - `src/main/assets/js/analytics/charts.ts` listens for Plotly `plotly_relayout` events on charts that carry `behaviors.autoFitYAxesOnXZoom`.
+  - Each rule names an axis (`y` or `y2`) and a strategy (`stacked-bar-sum`, `stacked-bar-and-line-max`, or `line-extents`).
+  - On x-axis zoom or pan, the frontend recalculates visible maxima from the serialized trace data, applies padding, and relayouts the affected y-axis or y-axes.
+  - On x-axis reset/autorange, the frontend restores autorange for the affected y-axis or y-axes.
 - A custom scroll/pan UI is used for large category lists (open tasks by name and completed tasks by name).
 
 ## Styling (SCSS)

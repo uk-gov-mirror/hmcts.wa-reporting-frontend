@@ -70,6 +70,7 @@ flowchart TB
 - Chart: stacked bar (within vs beyond due date) with a line for average handling time (days).
 - Chart axes: x-axis `Completed date`; primary y-axis `Tasks`; secondary y-axis `Average handling time (days)`.
 - Chart colours: within due date uses GOV.UK blue (`#1d70b8`), outside due date uses grey (`#b1b4b6`), and average handling time uses signal red (`#ca3535`).
+- When the visible x-axis date range is narrowed, the chart automatically re-fits both y-axes: the primary `Tasks` axis to the highest visible stacked task total and the secondary handling-time axis to the highest visible average handling-time value in that window.
 - Table columns:
   - Completed date
   - Tasks

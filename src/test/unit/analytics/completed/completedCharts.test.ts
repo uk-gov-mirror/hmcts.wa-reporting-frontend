@@ -32,6 +32,9 @@ describe('completedCharts', () => {
     expect(config.layout.xaxis.title.text).toBe('Completed date');
     expect(config.layout.xaxis.fixedrange).toBe(false);
     expect(config.layout.yaxis.title.text).toBe('Tasks');
+    expect(config.behaviors.autoFitYAxesOnXZoom).toEqual([
+      { axis: 'y', strategy: 'stacked-bar-and-line-max', paddingRatio: 0.05, minUpperBound: 1 },
+    ]);
   });
 
   test('buildCompletedByNameChart uses task counts', () => {
@@ -108,6 +111,9 @@ describe('completedCharts', () => {
     expect(config.layout.yaxis.title.text).toBe('Days');
     expect(config.layout.yaxis.fixedrange).toBe(true);
     expect(config.layout.yaxis.rangemode).toBe('tozero');
+    expect(config.behaviors.autoFitYAxesOnXZoom).toEqual([
+      { axis: 'y', strategy: 'line-extents', paddingRatio: 0.05, minUpperBound: 1 },
+    ]);
   });
 
   test('buildTimelineChart preserves stacked values and colors', () => {

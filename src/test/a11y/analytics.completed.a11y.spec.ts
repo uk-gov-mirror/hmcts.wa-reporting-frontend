@@ -10,6 +10,7 @@ test.describe('Analytics completed page accessibility', () => {
     await analyticsCompletedPage.goto();
 
     await expect(analyticsCompletedPage.heading).toBeVisible();
+    await analyticsCompletedPage.waitForProcessingHandlingTimeChart();
     await axeUtils.audit({ exclude: A11Y_EXCLUDED_SELECTORS });
   });
 });

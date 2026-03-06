@@ -10,6 +10,7 @@ test.describe('Analytics outstanding page accessibility', () => {
     await analyticsOutstandingPage.goto();
 
     await expect(analyticsOutstandingPage.heading).toBeVisible();
+    await analyticsOutstandingPage.waitForOpenTasksChart();
     await axeUtils.audit({ exclude: A11Y_EXCLUDED_SELECTORS });
   });
 });
