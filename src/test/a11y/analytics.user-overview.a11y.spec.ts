@@ -10,7 +10,6 @@ test.describe('Analytics user overview page accessibility', () => {
     await analyticsUserOverviewPage.goto();
 
     await expect(analyticsUserOverviewPage.heading).toBeVisible();
-    await analyticsUserOverviewPage.waitForCompletedByDateChart();
     await axeUtils.audit({ exclude: A11Y_EXCLUDED_SELECTORS });
   });
 });

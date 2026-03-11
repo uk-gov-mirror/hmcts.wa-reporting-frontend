@@ -63,7 +63,6 @@ flowchart TB
   - Completed total
   - Within due date
   - Beyond due date
-- The summary panel and donut chart use the same active filter scope as the completed table, including the optional `User` filter and the completed date range.
 - Donut chart for within vs beyond due date.
 
 ### 3) Completed tasks by date
@@ -71,7 +70,6 @@ flowchart TB
 - Chart: stacked bar (within vs beyond due date) with a line for average handling time (days).
 - Chart axes: x-axis `Completed date`; primary y-axis `Tasks`; secondary y-axis `Average handling time (days)`.
 - Chart colours: within due date uses GOV.UK blue (`#1d70b8`), outside due date uses grey (`#b1b4b6`), and average handling time uses signal red (`#ca3535`).
-- When the visible x-axis date range is narrowed, the chart automatically re-fits both y-axes: the primary `Tasks` axis to the highest visible stacked task total and the secondary handling-time axis to the highest visible average handling-time value in that window.
 - Table columns:
   - Completed date
   - Tasks
@@ -97,11 +95,8 @@ flowchart TB
 - CSV export is available for all tables.
 - The user filter is optional; if not selected, results span all users.
 - User Overview excludes records where `role_category_label` is Judicial (case-insensitive), so Judicial role category data is not shown in tables, charts, summaries, or role-category filter options on this page.
-- Assigned total and priority summary are aggregate-backed. With no `User` filter selected, they read `analytics.snapshot_task_daily_facts`; when a `User` filter is selected, they fall back to a server-side aggregate on `analytics.snapshot_open_task_rows` so the summary still reflects the assignee exactly without loading all assigned rows into the app.
-- The assigned table itself remains row-backed from `analytics.snapshot_open_task_rows`.
-- Completed total and completed summary are facts-backed from `analytics.snapshot_user_completed_facts` (`SUM(tasks)` and `SUM(within_due)` within the active filters).
-- Completed tasks by task name is facts-backed from `analytics.snapshot_user_completed_facts`, with refresh-time aggregates preserving the same average calculations as the previous row-level query.
-- The default assigned and completed table entry queries are backed by dedicated non-Judicial partial indexes on the snapshot row partitions for `created_date DESC NULLS LAST` and `completed_date DESC NULLS LAST`.
+- Completed total is facts-backed from `analytics.snapshot_user_completed_facts` (`SUM(tasks)` within the active filters).
+- Completed tasks by task name remains row-level from `analytics.snapshot_task_rows` to preserve interval-based average calculations.
 - AJAX section refreshes only load the requested section's data path (for example, completed-by-date data is fetched only for the completed-by-date section).
 - Sorting state and pagination are preserved through hidden form inputs.
 - The priority donut uses the GOV.UK palette mapping Urgent `#98285d` (purple), High `#16548a` (dark blue), Medium `#8eb8dc` (light blue), and Low `#cecece` (light grey).

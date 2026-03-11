@@ -1,4 +1,3 @@
-import type { PlotlyAutoFitAxisRule } from '../../../../assets/js/analytics/types';
 import { buildChartConfig } from './plotly';
 
 type BarSeries = {
@@ -26,11 +25,6 @@ type TimeSeriesLayoutOverrides = {
   legendOrientation?: 'h' | 'v';
   axisTitles?: AxisTitles;
 };
-
-const defaultAutoFitAxisOptions = {
-  paddingRatio: 0.05,
-  minUpperBound: 1,
-} satisfies Pick<PlotlyAutoFitAxisRule, 'paddingRatio' | 'minUpperBound'>;
 
 const defaultDateXAxis = {
   type: 'date',
@@ -79,17 +73,6 @@ function buildTimeSeriesAxes(
   };
 }
 
-function buildAutoFitAxisRule(
-  axis: PlotlyAutoFitAxisRule['axis'],
-  strategy: PlotlyAutoFitAxisRule['strategy']
-): PlotlyAutoFitAxisRule {
-  return {
-    axis,
-    strategy,
-    ...defaultAutoFitAxisOptions,
-  };
-}
-
 export function buildStackedBarTimeSeries(
   dates: string[],
   series: BarSeries[],
@@ -117,9 +100,6 @@ export function buildStackedBarTimeSeries(
       xaxis,
       yaxis,
     },
-    behaviors: {
-      autoFitYAxesOnXZoom: [buildAutoFitAxisRule('y', 'stacked-bar-sum')],
-    },
   });
 }
 
@@ -134,10 +114,6 @@ export function buildStackedBarWithLineTimeSeries(
     fixedrange: true,
     rangemode: 'tozero',
   });
-  const autoFitAxisRules =
-    line.axis === 'y2'
-      ? [buildAutoFitAxisRule('y', 'stacked-bar-sum'), buildAutoFitAxisRule('y2', 'line-extents')]
-      : [buildAutoFitAxisRule('y', 'stacked-bar-and-line-max')];
 
   return buildChartConfig({
     data: [
@@ -166,9 +142,6 @@ export function buildStackedBarWithLineTimeSeries(
       xaxis,
       yaxis,
     },
-    behaviors: {
-      autoFitYAxesOnXZoom: autoFitAxisRules,
-    },
   });
 }
 
@@ -193,9 +166,6 @@ export function buildLineTimeSeries(
       ...restLayout,
       xaxis,
       ...(Object.keys(yaxis).length > 0 ? { yaxis } : {}),
-    },
-    behaviors: {
-      autoFitYAxesOnXZoom: [buildAutoFitAxisRule('y', 'line-extents')],
     },
   });
 }

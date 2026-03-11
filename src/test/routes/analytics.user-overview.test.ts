@@ -29,7 +29,6 @@ const assignedHighPriorityRow = {
 beforeAll(async () => {
   ({ server, close: closeServer } = await buildRouteTestServer({
     analyticsMocks: {
-      userOverviewAssignedSummaryRows: [{ total: 1, urgent: 0, high: 1, medium: 0, low: 0 }],
       userOverviewAssignedTaskRows: [assignedHighPriorityRow],
       userOverviewAssignedTaskCount: 1,
     },
@@ -59,9 +58,6 @@ describe('Analytics user overview route', () => {
       expect(response.text).toContain('Total assignments');
       expect(response.text).toContain('High');
       expect(response.text).not.toMatch(/>\s*high\s*</);
-      expect(response.text).toContain('autoFitYAxesOnXZoom');
-      expect(response.text).toContain('stacked-bar-sum');
-      expect(response.text).toContain('line-extents');
       expect(response.text).toMatch(
         /data-export-filename="user-overview-completed-by-task-name\.csv"[\s\S]*?<th[^>]*aria-sort="descending"[^>]*>\s*Tasks\s*<\/th>/
       );

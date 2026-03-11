@@ -176,7 +176,6 @@ export async function buildOutstandingPage(
     : await fetchFacetedFilterStateWithFallback({
         errorMessage: 'Failed to fetch outstanding filter options from database',
         snapshotId: snapshotContext.snapshotId,
-        scope: 'outstanding',
         filters,
         changedFilter,
         includeUserFilter: false,

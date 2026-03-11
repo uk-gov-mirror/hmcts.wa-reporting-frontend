@@ -5,7 +5,7 @@
 <h2 class="govuk-heading-m">Tasks completed</h2>
 <p class="govuk-body">Completed tasks within the selected date range</p>
 {% set timelineChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.timeline }}'></div>
+  <div class="analytics-chart" data-chart-config='{{ charts.timeline | safe }}'></div>
 {% endset %}
 {% set timelineTableHtml %}
   <div class="analytics-tab-panel">

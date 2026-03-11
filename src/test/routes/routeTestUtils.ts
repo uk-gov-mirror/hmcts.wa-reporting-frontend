@@ -6,11 +6,8 @@ type RouteTestServer = {
 };
 
 type RouteAnalyticsMocks = {
-  completedByNameRows?: unknown[];
-  userOverviewAssignedSummaryRows?: unknown[];
   userOverviewAssignedTaskRows?: unknown[];
   userOverviewCompletedTaskRows?: unknown[];
-  userOverviewCompletedSummaryRows?: unknown[];
   userOverviewAssignedTaskCount?: number;
   userOverviewCompletedTaskCount?: number;
   outstandingCriticalTaskRows?: unknown[];
@@ -55,11 +52,8 @@ function mockOidcMiddleware(): void {
 }
 
 function mockAnalyticsRepositories(analyticsMocks: RouteAnalyticsMocks = {}): void {
-  const completedByNameRows = analyticsMocks.completedByNameRows ?? [];
-  const userOverviewAssignedSummaryRows = analyticsMocks.userOverviewAssignedSummaryRows ?? [];
   const userOverviewAssignedTaskRows = analyticsMocks.userOverviewAssignedTaskRows ?? [];
   const userOverviewCompletedTaskRows = analyticsMocks.userOverviewCompletedTaskRows ?? [];
-  const userOverviewCompletedSummaryRows = analyticsMocks.userOverviewCompletedSummaryRows ?? [];
   const userOverviewAssignedTaskCount = analyticsMocks.userOverviewAssignedTaskCount ?? 0;
   const userOverviewCompletedTaskCount = analyticsMocks.userOverviewCompletedTaskCount ?? 0;
   const outstandingCriticalTaskRows = analyticsMocks.outstandingCriticalTaskRows ?? [];
@@ -86,11 +80,9 @@ function mockAnalyticsRepositories(analyticsMocks: RouteAnalyticsMocks = {}): vo
       fetchCompletedSummaryRows: jest.fn().mockResolvedValue([]),
       fetchCompletedTimelineRows: jest.fn().mockResolvedValue([]),
       fetchCompletedProcessingHandlingTimeRows: jest.fn().mockResolvedValue([]),
-      fetchCompletedByNameRows: jest.fn().mockResolvedValue(completedByNameRows),
+      fetchCompletedByNameRows: jest.fn().mockResolvedValue([]),
       fetchCompletedByLocationRows: jest.fn().mockResolvedValue([]),
       fetchCompletedByRegionRows: jest.fn().mockResolvedValue([]),
-      fetchUserOverviewAssignedSummaryRows: jest.fn().mockResolvedValue(userOverviewAssignedSummaryRows),
-      fetchUserOverviewCompletedSummaryRows: jest.fn().mockResolvedValue(userOverviewCompletedSummaryRows),
       fetchUserOverviewCompletedTaskCount: jest.fn().mockResolvedValue(userOverviewCompletedTaskCount),
     },
   }));

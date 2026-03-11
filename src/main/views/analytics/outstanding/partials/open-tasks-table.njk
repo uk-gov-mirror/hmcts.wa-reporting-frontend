@@ -5,7 +5,7 @@
 <h2 class="govuk-heading-m">Open tasks</h2>
 <p class="govuk-body analytics-chart-intro">Open tasks by created date with current assignment state</p>
 {% set openTasksChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.openTasks }}'></div>
+  <div class="analytics-chart" data-chart-config='{{ charts.openTasks | safe }}'></div>
 {% endset %}
 {% set openTasksTableHtml %}
   <div class="analytics-tab-panel">

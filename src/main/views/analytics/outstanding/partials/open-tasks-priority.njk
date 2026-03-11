@@ -5,7 +5,7 @@
 <h2 class="govuk-heading-m">Open tasks priority</h2>
 <p class="govuk-body">Open tasks due by priority</p>
 {% set tasksDuePriorityChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.tasksDueByPriority }}'></div>
+  <div class="analytics-chart" data-chart-config='{{ charts.tasksDueByPriority | safe }}'></div>
 {% endset %}
 {% set tasksDuePriorityTableHtml %}
   <div class="analytics-tab-panel">

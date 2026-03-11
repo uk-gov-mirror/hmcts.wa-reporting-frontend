@@ -3,8 +3,8 @@ import { Prisma } from '@prisma/client';
 import { tmPrisma } from '../data/prisma';
 import { priorityRankSql } from '../priority/priorityRankSql';
 import { AnalyticsFilters } from '../types';
-import type { AnalyticsFacetScope } from '../filters';
 
+import { SECONDS_PER_DAY_SQL } from './constants';
 import { AnalyticsQueryOptions, buildAnalyticsWhere } from './filters';
 import { asOfSnapshotCondition } from './snapshotSql';
 import {
@@ -24,7 +24,6 @@ import {
   SummaryTotalsRow,
   TaskEventsByServiceDbRow,
   TasksDuePriorityRow,
-  UserOverviewAssignedSummaryRow,
 } from './types';
 
 type OverviewFilterOptionKind =
@@ -45,7 +44,6 @@ type OverviewFilterOptionRow = {
 };
 
 type OverviewFilterOptionsParams = {
-  scope?: AnalyticsFacetScope;
   filters?: AnalyticsFilters;
   queryOptions?: AnalyticsQueryOptions;
   includeUserFilter?: boolean;
@@ -53,45 +51,12 @@ type OverviewFilterOptionsParams = {
 
 type OverviewFilterOptionsInput = OverviewFilterOptionsParams | AnalyticsQueryOptions | undefined;
 
-function buildUserOverviewCompletedFactsWhere(
-  snapshotId: number,
-  filters: AnalyticsFilters,
-  queryOptions?: AnalyticsQueryOptions
-): Prisma.Sql {
-  const conditions: Prisma.Sql[] = [asOfSnapshotCondition(snapshotId)];
-  if (filters.completedFrom) {
-    conditions.push(Prisma.sql`completed_date >= ${filters.completedFrom}`);
-  }
-  if (filters.completedTo) {
-    conditions.push(Prisma.sql`completed_date <= ${filters.completedTo}`);
-  }
-  if (filters.user && filters.user.length > 0) {
-    conditions.push(Prisma.sql`assignee IN (${Prisma.join(filters.user)})`);
-  }
-  return buildAnalyticsWhere(filters, conditions, queryOptions);
-}
-
 export class TaskFactsRepository {
-  private filterFactsTable(scope: AnalyticsFacetScope): Prisma.Sql {
-    switch (scope) {
-      case 'overview':
-        return Prisma.raw('analytics.snapshot_overview_filter_facts');
-      case 'outstanding':
-        return Prisma.raw('analytics.snapshot_outstanding_filter_facts');
-      case 'completed':
-        return Prisma.raw('analytics.snapshot_completed_filter_facts');
-      case 'userOverview':
-        return Prisma.raw('analytics.snapshot_user_filter_facts');
-      default:
-        return Prisma.raw('analytics.snapshot_overview_filter_facts');
-    }
-  }
-
   private resolveOverviewFilterOptionsParams(params: OverviewFilterOptionsInput): OverviewFilterOptionsParams {
     if (!params) {
       return {};
     }
-    if ('scope' in params || 'filters' in params || 'queryOptions' in params || 'includeUserFilter' in params) {
+    if ('filters' in params || 'queryOptions' in params || 'includeUserFilter' in params) {
       return params as OverviewFilterOptionsParams;
     }
     return { queryOptions: params as AnalyticsQueryOptions };
@@ -187,11 +152,9 @@ export class TaskFactsRepository {
     params?: OverviewFilterOptionsInput
   ): Promise<OverviewFilterOptionsRows> {
     const resolved = this.resolveOverviewFilterOptionsParams(params);
-    const scope = resolved.scope ?? 'overview';
     const filters = resolved.filters ?? {};
     const queryOptions = resolved.queryOptions;
     const includeUserFilter = resolved.includeUserFilter ?? true;
-    const tableName = this.filterFactsTable(scope);
 
     const optionBranches: Prisma.Sql[] = [];
     const serviceWhere = this.buildOverviewFacetWhereClause({
@@ -205,7 +168,7 @@ export class TaskFactsRepository {
       SELECT
         'service'::text AS option_type,
         jurisdiction_label AS value
-      FROM ${tableName}
+      FROM analytics.snapshot_filter_facet_facts
       ${serviceWhere}
         AND jurisdiction_label IS NOT NULL
       GROUP BY jurisdiction_label
@@ -222,7 +185,7 @@ export class TaskFactsRepository {
       SELECT
         'roleCategory'::text AS option_type,
         role_category_label AS value
-      FROM ${tableName}
+      FROM analytics.snapshot_filter_facet_facts
       ${roleCategoryWhere}
         AND role_category_label IS NOT NULL
         AND BTRIM(role_category_label) <> ''
@@ -240,7 +203,7 @@ export class TaskFactsRepository {
       SELECT
         'region'::text AS option_type,
         region AS value
-      FROM ${tableName}
+      FROM analytics.snapshot_filter_facet_facts
       ${regionWhere}
         AND region IS NOT NULL
       GROUP BY region
@@ -257,7 +220,7 @@ export class TaskFactsRepository {
       SELECT
         'location'::text AS option_type,
         location AS value
-      FROM ${tableName}
+      FROM analytics.snapshot_filter_facet_facts
       ${locationWhere}
         AND location IS NOT NULL
       GROUP BY location
@@ -274,7 +237,7 @@ export class TaskFactsRepository {
       SELECT
         'taskName'::text AS option_type,
         task_name AS value
-      FROM ${tableName}
+      FROM analytics.snapshot_filter_facet_facts
       ${taskNameWhere}
         AND task_name IS NOT NULL
       GROUP BY task_name
@@ -291,7 +254,7 @@ export class TaskFactsRepository {
       SELECT
         'workType'::text AS option_type,
         work_type AS value
-      FROM ${tableName}
+      FROM analytics.snapshot_filter_facet_facts
       ${workTypeWhere}
         AND work_type IS NOT NULL
       GROUP BY work_type
@@ -309,7 +272,7 @@ export class TaskFactsRepository {
         SELECT
           'assignee'::text AS option_type,
           assignee AS value
-        FROM ${tableName}
+        FROM analytics.snapshot_filter_facet_facts
         ${assigneeWhere}
           AND assignee IS NOT NULL
         GROUP BY assignee
@@ -559,84 +522,22 @@ export class TaskFactsRepository {
     `);
   }
 
-  async fetchUserOverviewCompletedSummaryRows(
-    snapshotId: number,
-    filters: AnalyticsFilters,
-    queryOptions?: AnalyticsQueryOptions
-  ): Promise<CompletedSummaryRow[]> {
-    const whereClause = buildUserOverviewCompletedFactsWhere(snapshotId, filters, queryOptions);
-
-    return tmPrisma.$queryRaw<CompletedSummaryRow[]>(Prisma.sql`
-      SELECT
-        COALESCE(SUM(tasks), 0)::int AS total,
-        COALESCE(SUM(within_due), 0)::int AS within
-      FROM analytics.snapshot_user_completed_facts
-      ${whereClause}
-    `);
-  }
-
-  async fetchUserOverviewAssignedSummaryRows(
-    snapshotId: number,
-    filters: AnalyticsFilters,
-    queryOptions?: AnalyticsQueryOptions
-  ): Promise<UserOverviewAssignedSummaryRow[]> {
-    if (filters.user && filters.user.length > 0) {
-      const conditions: Prisma.Sql[] = [asOfSnapshotCondition(snapshotId), Prisma.sql`state = 'ASSIGNED'`];
-      conditions.push(Prisma.sql`assignee IN (${Prisma.join(filters.user)})`);
-      const whereClause = buildAnalyticsWhere(filters, conditions, queryOptions);
-      const priorityRank = priorityRankSql({
-        priorityColumn: Prisma.raw('major_priority'),
-        dateColumn: Prisma.raw('due_date'),
-      });
-
-      return tmPrisma.$queryRaw<UserOverviewAssignedSummaryRow[]>(Prisma.sql`
-        SELECT
-          COUNT(*)::int AS total,
-          COALESCE(SUM(CASE WHEN ${priorityRank} = 4 THEN 1 ELSE 0 END), 0)::int AS urgent,
-          COALESCE(SUM(CASE WHEN ${priorityRank} = 3 THEN 1 ELSE 0 END), 0)::int AS high,
-          COALESCE(SUM(CASE WHEN ${priorityRank} = 2 THEN 1 ELSE 0 END), 0)::int AS medium,
-          COALESCE(SUM(CASE WHEN ${priorityRank} = 1 THEN 1 ELSE 0 END), 0)::int AS low
-        FROM analytics.snapshot_open_task_rows rows
-        ${whereClause}
-      `);
-    }
-
-    const conditions: Prisma.Sql[] = [
-      asOfSnapshotCondition(snapshotId),
-      Prisma.sql`date_role = 'due'`,
-      Prisma.sql`task_status = 'open'`,
-      Prisma.sql`assignment_state = 'Assigned'`,
-    ];
-    const whereClause = buildAnalyticsWhere(filters, conditions, queryOptions);
-    const priorityRank = priorityRankSql({
-      priorityColumn: Prisma.raw('priority'),
-      dateColumn: Prisma.raw('reference_date'),
-    });
-
-    return tmPrisma.$queryRaw<UserOverviewAssignedSummaryRow[]>(Prisma.sql`
-      WITH bucketed AS (
-        SELECT
-          task_count,
-          ${priorityRank} AS priority_rank
-        FROM analytics.snapshot_task_daily_facts
-        ${whereClause}
-      )
-      SELECT
-        COALESCE(SUM(task_count), 0)::int AS total,
-        COALESCE(SUM(CASE WHEN priority_rank = 4 THEN task_count ELSE 0 END), 0)::int AS urgent,
-        COALESCE(SUM(CASE WHEN priority_rank = 3 THEN task_count ELSE 0 END), 0)::int AS high,
-        COALESCE(SUM(CASE WHEN priority_rank = 2 THEN task_count ELSE 0 END), 0)::int AS medium,
-        COALESCE(SUM(CASE WHEN priority_rank = 1 THEN task_count ELSE 0 END), 0)::int AS low
-      FROM bucketed
-    `);
-  }
-
   async fetchUserOverviewCompletedTaskCount(
     snapshotId: number,
     filters: AnalyticsFilters,
     queryOptions?: AnalyticsQueryOptions
   ): Promise<number> {
-    const whereClause = buildUserOverviewCompletedFactsWhere(snapshotId, filters, queryOptions);
+    const conditions: Prisma.Sql[] = [asOfSnapshotCondition(snapshotId)];
+    if (filters.completedFrom) {
+      conditions.push(Prisma.sql`completed_date >= ${filters.completedFrom}`);
+    }
+    if (filters.completedTo) {
+      conditions.push(Prisma.sql`completed_date <= ${filters.completedTo}`);
+    }
+    if (filters.user && filters.user.length > 0) {
+      conditions.push(Prisma.sql`assignee IN (${Prisma.join(filters.user)})`);
+    }
+    const whereClause = buildAnalyticsWhere(filters, conditions, queryOptions);
 
     const rows = await tmPrisma.$queryRaw<{ total: number }[]>(Prisma.sql`
       SELECT COALESCE(SUM(tasks), 0)::int AS total
@@ -683,57 +584,33 @@ export class TaskFactsRepository {
   ): Promise<CompletedProcessingHandlingTimeRow[]> {
     const conditions: Prisma.Sql[] = [
       asOfSnapshotCondition(snapshotId),
-      Prisma.sql`date_role = 'completed'`,
-      Prisma.sql`task_status = 'completed'`,
+      Prisma.sql`LOWER(termination_reason) = 'completed'`,
+      Prisma.sql`completed_date IS NOT NULL`,
     ];
     if (range?.from) {
-      conditions.push(Prisma.sql`reference_date >= ${range.from}`);
+      conditions.push(Prisma.sql`completed_date >= ${range.from}`);
     }
     if (range?.to) {
-      conditions.push(Prisma.sql`reference_date <= ${range.to}`);
+      conditions.push(Prisma.sql`completed_date <= ${range.to}`);
     }
     const whereClause = buildAnalyticsWhere(filters, conditions);
 
     return tmPrisma.$queryRaw<CompletedProcessingHandlingTimeRow[]>(Prisma.sql`
       SELECT
-        to_char(reference_date, 'YYYY-MM-DD') AS date_key,
-        SUM(task_count)::int AS task_count,
-        CASE
-          WHEN SUM(handling_time_days_count) = 0 THEN NULL
-          ELSE SUM(handling_time_days_sum)::double precision / SUM(handling_time_days_count)::double precision
-        END AS handling_avg,
-        CASE
-          WHEN SUM(handling_time_days_count) = 0 THEN NULL
-          ELSE SQRT(
-            GREATEST(
-              0,
-              (SUM(handling_time_days_sum_squares)::double precision / SUM(handling_time_days_count)::double precision) -
-              POWER(SUM(handling_time_days_sum)::double precision / SUM(handling_time_days_count)::double precision, 2)
-            )
-          )
-        END AS handling_stddev,
-        SUM(handling_time_days_sum)::double precision AS handling_sum,
-        SUM(handling_time_days_count)::int AS handling_count,
-        CASE
-          WHEN SUM(processing_time_days_count) = 0 THEN NULL
-          ELSE SUM(processing_time_days_sum)::double precision / SUM(processing_time_days_count)::double precision
-        END AS processing_avg,
-        CASE
-          WHEN SUM(processing_time_days_count) = 0 THEN NULL
-          ELSE SQRT(
-            GREATEST(
-              0,
-              (SUM(processing_time_days_sum_squares)::double precision / SUM(processing_time_days_count)::double precision) -
-              POWER(SUM(processing_time_days_sum)::double precision / SUM(processing_time_days_count)::double precision, 2)
-            )
-          )
-        END AS processing_stddev,
-        SUM(processing_time_days_sum)::double precision AS processing_sum,
-        SUM(processing_time_days_count)::int AS processing_count
-      FROM analytics.snapshot_task_daily_facts
+        to_char(completed_date, 'YYYY-MM-DD') AS date_key,
+        COUNT(*)::int AS task_count,
+        AVG(EXTRACT(EPOCH FROM handling_time) / ${SECONDS_PER_DAY_SQL}) FILTER (WHERE handling_time IS NOT NULL)::double precision AS handling_avg,
+        STDDEV_POP(EXTRACT(EPOCH FROM handling_time) / ${SECONDS_PER_DAY_SQL}) FILTER (WHERE handling_time IS NOT NULL)::double precision AS handling_stddev,
+        SUM(EXTRACT(EPOCH FROM handling_time) / ${SECONDS_PER_DAY_SQL}) FILTER (WHERE handling_time IS NOT NULL)::double precision AS handling_sum,
+        COUNT(handling_time)::int AS handling_count,
+        AVG(EXTRACT(EPOCH FROM processing_time) / ${SECONDS_PER_DAY_SQL}) FILTER (WHERE processing_time IS NOT NULL)::double precision AS processing_avg,
+        STDDEV_POP(EXTRACT(EPOCH FROM processing_time) / ${SECONDS_PER_DAY_SQL}) FILTER (WHERE processing_time IS NOT NULL)::double precision AS processing_stddev,
+        SUM(EXTRACT(EPOCH FROM processing_time) / ${SECONDS_PER_DAY_SQL}) FILTER (WHERE processing_time IS NOT NULL)::double precision AS processing_sum,
+        COUNT(processing_time)::int AS processing_count
+      FROM analytics.snapshot_task_rows
       ${whereClause}
-      GROUP BY reference_date
-      ORDER BY reference_date
+      GROUP BY completed_date
+      ORDER BY completed_date
     `);
   }
 

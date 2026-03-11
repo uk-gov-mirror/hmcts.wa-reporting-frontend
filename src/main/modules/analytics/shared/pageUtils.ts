@@ -2,7 +2,7 @@ import config from 'config';
 import { createHmac, timingSafeEqual } from 'crypto';
 
 import { emptyOverviewFilterOptions } from './filters';
-import type { AnalyticsFacetScope, FacetFilterKey } from './filters';
+import type { FacetFilterKey } from './filters';
 import { buildFreshnessInsetText } from './formatting';
 import type { AnalyticsQueryOptions } from './repositories/filters';
 import { snapshotStateRepository } from './repositories';
@@ -113,15 +113,11 @@ export function parseSnapshotTokenInput(value: unknown): number | undefined {
 export async function fetchFilterOptionsWithFallback(
   errorMessage: string,
   snapshotId: number,
-  scopeOrQueryOptions?: AnalyticsFacetScope | AnalyticsQueryOptions,
   queryOptions?: AnalyticsQueryOptions
 ): Promise<FilterOptions> {
-  const scope = typeof scopeOrQueryOptions === 'string' ? scopeOrQueryOptions : 'overview';
-  const resolvedQueryOptions =
-    typeof scopeOrQueryOptions === 'string' ? queryOptions : (scopeOrQueryOptions as AnalyticsQueryOptions | undefined);
   let filterOptions = emptyOverviewFilterOptions();
   try {
-    filterOptions = await filterService.fetchFilterOptions(snapshotId, resolvedQueryOptions, scope);
+    filterOptions = await filterService.fetchFilterOptions(snapshotId, queryOptions);
   } catch (error) {
     logDbError(errorMessage, error);
   }
@@ -131,27 +127,17 @@ export async function fetchFilterOptionsWithFallback(
 export async function fetchFacetedFilterStateWithFallback(params: {
   errorMessage: string;
   snapshotId: number;
-  scope?: AnalyticsFacetScope;
   filters: AnalyticsFilters;
   queryOptions?: AnalyticsQueryOptions;
   changedFilter?: FacetFilterKey;
   includeUserFilter?: boolean;
 }): Promise<{ filters: AnalyticsFilters; filterOptions: FilterOptions }> {
-  const {
-    errorMessage,
-    snapshotId,
-    scope = 'overview',
-    filters,
-    queryOptions,
-    changedFilter,
-    includeUserFilter,
-  } = params;
+  const { errorMessage, snapshotId, filters, queryOptions, changedFilter, includeUserFilter } = params;
   let resolvedFilters = filters;
   let filterOptions = emptyOverviewFilterOptions();
 
   try {
     const resolved = await filterService.fetchFacetedFilterState(snapshotId, filters, {
-      scope,
       queryOptions,
       changedFilter,
       includeUserFilter,

@@ -48,7 +48,7 @@ describe('pageUtils', () => {
     const result = await fetchFilterOptionsWithFallback('Failed', 7);
 
     expect(result.services).toEqual(['A']);
-    expect(filterService.fetchFilterOptions).toHaveBeenCalledWith(7, undefined, 'overview');
+    expect(filterService.fetchFilterOptions).toHaveBeenCalledWith(7, undefined);
     expect(logDbError).not.toHaveBeenCalled();
   });
 
@@ -82,11 +82,7 @@ describe('pageUtils', () => {
 
     await fetchFilterOptionsWithFallback('Failed', 7, { excludeRoleCategories: ['Judicial'] });
 
-    expect(filterService.fetchFilterOptions).toHaveBeenCalledWith(
-      7,
-      { excludeRoleCategories: ['Judicial'] },
-      'overview'
-    );
+    expect(filterService.fetchFilterOptions).toHaveBeenCalledWith(7, { excludeRoleCategories: ['Judicial'] });
   });
 
   test('fetchPublishedSnapshotContext maps snapshot metadata and freshness text', async () => {
@@ -289,7 +285,6 @@ describe('pageUtils', () => {
       12,
       { service: ['Civil'] },
       {
-        scope: 'overview',
         queryOptions: undefined,
         changedFilter: 'service',
         includeUserFilter: false,

@@ -5,7 +5,6 @@ const USER_FACET_FILTER_KEY = 'user' as const;
 
 export type BaseFacetFilterKey = (typeof BASE_FACET_FILTER_KEYS)[number];
 export type FacetFilterKey = BaseFacetFilterKey | typeof USER_FACET_FILTER_KEY;
-export type AnalyticsFacetScope = 'overview' | 'outstanding' | 'completed' | 'userOverview';
 
 type FacetFilterState = Pick<AnalyticsFilters, FacetFilterKey>;
 

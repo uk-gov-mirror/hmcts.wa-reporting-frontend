@@ -68,13 +68,10 @@ Prefer `config.get<T>(...)` with explicit types for clarity, and `config.has(...
 
 ### Flyway analytics migrations
 - The analytics schema is managed by Flyway migrations under `db/migrations/tm/`.
-- `db/migrations/tm/V001__init_analytics_schema.sql` is a repository-local copy of the previously deployed HMCTS analytics baseline from `wa-task-management-api` `V1.0.44__init_analytics_schema.sql`.
-- Later repository-owned migrations, including `V002__redesign_analytics_snapshot_schema.sql`, evolve that baseline to the schema expected by this application branch.
-- `db/flyway/` contains a minimal Gradle wrapper project used only for Flyway commands (`flywayInfo`, `flywayBaseline`, `flywayValidate`, `flywayMigrate`).
-- The Flyway wrapper is configured with `baselineOnMigrate = true`, `baselineVersion = '001'`, and `baselineDescription = 'init analytics schema'`. On the first `flywayMigrate` against an existing environment with a non-empty `analytics` schema and no history table, Flyway records the local `V001` baseline automatically and then applies later migrations such as `V002`.
-- New empty environments still run `flywayMigrate` directly, but they must already contain the upstream TM source schema expected by `V001`; the analytics migration chain is not a full bootstrap for an otherwise blank Postgres database.
-- Flyway is wired in Jenkins to use the TM replica host and replica credential secrets. The runtime application still does not run schema migrations on startup.
-- In Jenkins, the Flyway step is wired as an explicit post-`buildinfra` action for `aat`, `demo`, `ithc`, `perftest`, and `prod`, with `TM_DB_MIGRATION_USER` / `TM_DB_MIGRATION_PASSWORD` loaded inside that step from WA Key Vault secrets `cft-task-POSTGRES-USER-FLEXIBLE-REPLICA` and `cft-task-POSTGRES-PASS-FLEXIBLE-REPLICA`. The Flyway JDBC URL mirrors the Jenkins library Gradle migration pattern and uses `?ssl=true&sslmode=require`. Jenkins runs `flywayMigrate` only; on the first run in an existing environment, Flyway auto-baselines to `001` before applying later migrations.
+- `db/migrations/tm/V001__init_analytics_schema.sql` is the pre-redesign analytics baseline used by the application code in this branch.
+- `db/migrations/tm/V002__redesign_analytics_snapshot_schema.sql` remains the forward redesign migration for environments that moved to the newer snapshot schema.
+- `db/migrations/tm/V003__revert_to_pre_redesign_snapshot_refresh.sql` is the coordinated rollback migration that takes a V002 environment back to the pre-redesign snapshot schema and refresh process.
+- `V003` must be deployed together with this reverted application code. It is not compatible with the redesigned app code that reads `snapshot_open_task_rows`, `snapshot_completed_task_rows`, and the page-scoped filter-fact tables.
 
 ### Security and logging
 - `useCSRFProtection`.
@@ -127,7 +124,6 @@ Keep the Key Vault secret lists in `charts/wa-reporting-frontend/values.yaml` an
 - `yarn build:watch` rebuilds frontend assets continuously via webpack watch mode.
 - `yarn build:server` compiles server TypeScript to `dist/`.
 - `yarn build:prod` builds assets and copies views/public into `dist/main`.
-- `db/flyway/gradlew` runs repository-owned Flyway commands for the TM analytics schema.
 
 ### Run
 - `yarn start` runs the compiled server from `dist/main/server.js`.
@@ -155,9 +151,7 @@ Keep the Key Vault secret lists in `charts/wa-reporting-frontend/values.yaml` an
 - When `analytics.snapshotRefreshCronBootstrap.enabled=true`, app startup attempts to register the snapshot refresh schedule via `cron.schedule_in_database(...)`.
 - Registration uses TM connection credentials and host settings, with the database name overridden to `analytics.snapshotRefreshCronBootstrap.cronDatabase` (default `postgres`).
 - Registration is non-fatal: startup logs failures and continues serving requests.
-- Failure logs include structured error fields (`errorName`, `errorMessage`, optional `errorCode`/`errorDetail`/`errorHint`/`errorMeta`, and `errorStack`) to aid diagnosis in JSON logging mode.
 - Startup registration is idempotent: existing jobs matching `jobName` and `targetDatabase` are unscheduled before registering the configured definition.
-- This bootstrap does not initialize or advance Flyway schema history; Flyway remains a separate Jenkins-run concern.
 - Prerequisites:
   - `pg_cron` extension and `cron` schema/functions are available in `cronDatabase`.
   - The application DB role has permissions to read from `cron.job` and execute `cron.unschedule(...)` / `cron.schedule_in_database(...)`.

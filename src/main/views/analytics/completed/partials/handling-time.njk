@@ -1,6 +1,6 @@
 <h2 class="govuk-heading-m">Handling time</h2>
 {% set handlingChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.handling }}'></div>
+  <div class="analytics-chart" data-chart-config='{{ charts.handling | safe }}'></div>
 {% endset %}
 {% set handlingTableHtml %}
   {{ govukSummaryList({ classes: "analytics-summary-list--wide", rows: handlingRows }) }}

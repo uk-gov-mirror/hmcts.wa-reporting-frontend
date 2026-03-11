@@ -5,7 +5,7 @@
 <h2 class="govuk-heading-m">Completed tasks by name</h2>
 <p class="govuk-body">Completed tasks within the selected date range by task name</p>
 {% set completedByNameChartHtml %}
-  <div class="analytics-chart" data-scroll-pan="true" data-chart-config='{{ charts.completedByName }}'></div>
+  <div class="analytics-chart" data-scroll-pan="true" data-chart-config='{{ charts.completedByName | safe }}'></div>
 {% endset %}
 {% set completedByNameTableHtml %}
   <div class="analytics-tab-panel">

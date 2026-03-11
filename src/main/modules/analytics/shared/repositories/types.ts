@@ -123,14 +123,6 @@ export type CompletedSummaryRow = {
   within: number;
 };
 
-export type UserOverviewAssignedSummaryRow = {
-  total: number;
-  urgent: number;
-  high: number;
-  medium: number;
-  low: number;
-};
-
 export type CompletedTimelineRow = {
   date_key: string;
   total: number;

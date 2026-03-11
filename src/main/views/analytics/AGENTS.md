@@ -11,6 +11,6 @@
 - Tables use the `analyticsTable` macro with `data-export-csv` and
   `data-export-filename` attributes plus the `csvDownloadButton` macro.
 - Charts are rendered via
-  `<div class="analytics-chart"... data-chart-config='{{ charts.<key> }}'>`.
+  `<div class="analytics-chart"... data-chart-config='{{ charts.<key> | safe }}'>`.
 - When tabs are needed, wrap chart/table HTML with `govukTabs` panels rather
   than custom markup.

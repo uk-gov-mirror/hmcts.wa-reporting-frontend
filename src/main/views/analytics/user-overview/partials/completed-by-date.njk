@@ -5,7 +5,7 @@
 <h2 class="govuk-heading-m">Completed tasks by date</h2>
 <p class="govuk-body">Number of tasks completed by date and average handling time</p>
 {% set completedByDateChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.completedByDate }}'></div>
+  <div class="analytics-chart" data-chart-config='{{ charts.completedByDate | safe }}'></div>
 {% endset %}
 {% set completedByDateTableHtml %}
   <div class="analytics-tab-panel">

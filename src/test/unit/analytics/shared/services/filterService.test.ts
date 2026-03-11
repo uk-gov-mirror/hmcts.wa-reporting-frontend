@@ -55,7 +55,7 @@ describe('filterService', () => {
     expect(buildSnapshotScopedCacheKey).toHaveBeenCalledWith(
       CacheKeys.filterOptions,
       snapshotId,
-      'scope=overview|includeUser=1|filters=none|query=default'
+      'includeUser=1|filters=none|query=default'
     );
     expect(taskFactsRepository.fetchOverviewFilterOptionsRows).not.toHaveBeenCalled();
   });
@@ -100,13 +100,12 @@ describe('filterService', () => {
     expect(result.users[1].value).toBe('user-1');
     expect(result.users.find(option => option.value === 'user-2')).toBeUndefined();
     expect(taskFactsRepository.fetchOverviewFilterOptionsRows).toHaveBeenCalledWith(snapshotId, {
-      scope: 'overview',
       filters: {},
       queryOptions: undefined,
       includeUserFilter: true,
     });
     expect(setCache).toHaveBeenCalledWith(
-      `${CacheKeys.filterOptions}:${snapshotId}:scope=overview|includeUser=1|filters=none|query=default`,
+      `${CacheKeys.filterOptions}:${snapshotId}:includeUser=1|filters=none|query=default`,
       result
     );
   });
@@ -133,10 +132,9 @@ describe('filterService', () => {
     expect(buildSnapshotScopedCacheKey).toHaveBeenCalledWith(
       CacheKeys.filterOptions,
       snapshotId,
-      'scope=overview|includeUser=1|filters=none|query=excludeRoleCategories=JUDICIAL'
+      'includeUser=1|filters=none|query=excludeRoleCategories=JUDICIAL'
     );
     expect(taskFactsRepository.fetchOverviewFilterOptionsRows).toHaveBeenCalledWith(snapshotId, {
-      scope: 'overview',
       filters: {},
       queryOptions: { excludeRoleCategories: ['Judicial'] },
       includeUserFilter: true,
@@ -165,7 +163,7 @@ describe('filterService', () => {
     expect(buildSnapshotScopedCacheKey).toHaveBeenCalledWith(
       CacheKeys.filterOptions,
       snapshotId,
-      'scope=overview|includeUser=1|filters=none|query=excludeRoleCategories=ADMIN,JUDICIAL'
+      'includeUser=1|filters=none|query=excludeRoleCategories=ADMIN,JUDICIAL'
     );
 
     await filterService.fetchFilterOptions(snapshotId, {
@@ -174,7 +172,7 @@ describe('filterService', () => {
     expect(buildSnapshotScopedCacheKey).toHaveBeenLastCalledWith(
       CacheKeys.filterOptions,
       snapshotId,
-      'scope=overview|includeUser=1|filters=none|query=default'
+      'includeUser=1|filters=none|query=default'
     );
   });
 
@@ -215,13 +213,11 @@ describe('filterService', () => {
     );
 
     expect(taskFactsRepository.fetchOverviewFilterOptionsRows).toHaveBeenNthCalledWith(1, snapshotId, {
-      scope: 'overview',
       filters: { service: ['Civil'], region: ['South'] },
       queryOptions: undefined,
       includeUserFilter: false,
     });
     expect(taskFactsRepository.fetchOverviewFilterOptionsRows).toHaveBeenNthCalledWith(2, snapshotId, {
-      scope: 'overview',
       filters: { service: ['Civil'] },
       queryOptions: undefined,
       includeUserFilter: false,
@@ -288,7 +284,7 @@ describe('filterService', () => {
     expect(buildSnapshotScopedCacheKey).toHaveBeenCalledWith(
       CacheKeys.filterOptions,
       snapshotId,
-      'scope=overview|includeUser=0|filters=service=Civil;roleCategory=Ops|query=default'
+      'includeUser=0|filters=service=Civil;roleCategory=Ops|query=default'
     );
   });
 });

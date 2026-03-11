@@ -67,7 +67,7 @@ export class Nunjucks {
   enableFor(app: express.Express): void {
     app.set('view engine', 'njk');
     const govukTemplates = path.dirname(require.resolve('govuk-frontend/package.json')) + '/dist';
-    const mojTemplates = path.dirname(require.resolve('@ministryofjustice/frontend/package.json'));
+    const mojTemplates = path.dirname(require.resolve('@ministryofjustice/frontend/package.json')) + '/moj';
     const viewsPath = path.join(__dirname, '..', '..', 'views');
 
     const nunjucksEnv = nunjucks.configure([govukTemplates, mojTemplates, viewsPath], {

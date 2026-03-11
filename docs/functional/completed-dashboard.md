@@ -35,7 +35,6 @@ flowchart LR
 - Title: "Tasks completed".
 - Chart: stacked bar (within vs beyond due date) plus a 7-day rolling average line.
 - Chart axes: x-axis `Completed date`; y-axis `Tasks`.
-- When the visible x-axis date range is narrowed, the chart automatically re-fits the y-axis to the highest visible value needed to show either the stacked task total or the rolling-average line in that window.
 - Table columns:
   - Completed date
   - Tasks
@@ -63,7 +62,6 @@ flowchart LR
   - Overall average for the selected metric (shown in the Chart tab).
   - Chart: average with upper/lower range (+/- 1 standard deviation) by completed date.
   - Chart axes: x-axis `Completed date`; y-axis `Days`.
-  - When the visible x-axis date range is narrowed, the chart automatically re-fits the y-axis to the highest visible line value in that window.
   - Table with the same data.
 
 ### 5) Task audit

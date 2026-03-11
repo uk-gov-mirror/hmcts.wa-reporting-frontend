@@ -97,7 +97,7 @@
           { key: { text: processingHandlingOverallLabel }, value: { text: processingHandlingOverallAverage } }
         ]
       }) }}
-      <div class="analytics-chart" data-chart-config='{{ charts.processingHandlingTime }}'></div>
+      <div class="analytics-chart" data-chart-config='{{ charts.processingHandlingTime | safe }}'></div>
     </div>
   {% endset %}
   {% set processingHandlingTableHtml %}

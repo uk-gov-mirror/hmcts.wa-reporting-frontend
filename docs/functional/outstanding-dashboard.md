@@ -37,7 +37,6 @@ flowchart TB
 - Title: "Open tasks".
 - Chart: stacked bar time series by created date (Assigned vs Unassigned).
 - Chart axes: x-axis `Created date`; y-axis `Tasks`.
-- When the visible x-axis date range is narrowed, the chart automatically re-fits the y-axis to the highest visible stacked total (`Assigned + Unassigned`) in that window.
 - Table columns:
   - Created date
   - Open tasks
@@ -51,7 +50,6 @@ flowchart TB
 - Title: "Wait time".
 - Chart: line chart of average wait (days) by assigned date.
 - Chart axes: x-axis `Assigned date`; y-axis `Days`.
-- When the visible x-axis date range is narrowed, the chart automatically re-fits the y-axis to the highest visible wait-time value in that window.
 - Population: currently assigned open tasks only (`state = ASSIGNED`).
 - Table columns:
   - Assigned date
@@ -84,7 +82,6 @@ flowchart TB
 - Title: "Tasks due".
 - Chart: stacked bar time series (Open vs Completed by due date).
 - Chart axes: x-axis `Due date`; y-axis `Tasks`.
-- When the visible x-axis date range is narrowed, the chart automatically re-fits the y-axis to the highest visible stacked total (`Open + Completed`) in that window.
 - Table columns:
   - Due date
   - Total due
@@ -96,7 +93,6 @@ flowchart TB
 - Title: "Open tasks priority".
 - Chart: stacked bar time series of open tasks due by priority.
 - Chart axes: x-axis `Due date`; y-axis `Tasks`.
-- When the visible x-axis date range is narrowed, the chart automatically re-fits the y-axis to the highest visible stacked total across the priority series in that window.
 - Table columns:
   - Due date
   - Total open
@@ -132,6 +128,5 @@ flowchart TB
 - CSV export is available for each table section.
 - Filters are applied consistently across all sections.
 - Open-task aggregate sections (summary, by name, by region/location) are sourced from `snapshot_task_daily_facts` using due/open slices.
-- The critical tasks table remains row-backed from `snapshot_open_task_rows`, but its total-result count is sourced from `snapshot_outstanding_filter_facts` so pagination does not need a full row-table count scan.
 - Priority charts (open tasks priority donut, open tasks priority by due date, open tasks by name) use a GOV.UK palette mapping of Urgent `#98285d` (purple), High `#16548a` (dark blue), Medium `#8eb8dc` (light blue), and Low `#cecece` (light grey).
 - Dates are displayed as `D Mon YYYY` in tables/charts, while date sorting and CSV export use ISO `YYYY-MM-DD` values.

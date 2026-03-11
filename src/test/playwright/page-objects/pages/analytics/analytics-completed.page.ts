@@ -1,7 +1,6 @@
 import { Locator, Page } from '@playwright/test';
 
 import { buildUrl } from '../../../config';
-import { waitForPlotlyChart } from './plotlyChart';
 
 export class AnalyticsCompletedPage {
   constructor(private readonly page: Page) {}
@@ -16,13 +15,5 @@ export class AnalyticsCompletedPage {
 
   get processingAndHandlingTimeText(): Locator {
     return this.page.getByText('Processing and handling time');
-  }
-
-  get processingHandlingTimeChart(): Locator {
-    return this.page.locator('#processingHandlingTimeChart .analytics-chart');
-  }
-
-  async waitForProcessingHandlingTimeChart(): Promise<void> {
-    await waitForPlotlyChart(this.processingHandlingTimeChart);
   }
 }

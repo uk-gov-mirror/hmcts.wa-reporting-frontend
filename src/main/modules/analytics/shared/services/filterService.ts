@@ -6,7 +6,6 @@ import {
   mergeFacetFilters,
   pickFacetFilters,
 } from '../filters';
-import type { AnalyticsFacetScope } from '../filters';
 import { taskFactsRepository } from '../repositories';
 import type { CaseWorkerProfileRow } from '../repositories';
 import type { AnalyticsQueryOptions } from '../repositories/filters';
@@ -116,14 +115,13 @@ function buildFilterValuesCacheSignature(filters: AnalyticsFilters, includeUserF
 }
 
 function buildFilterOptionsCacheSignature(
-  scope: AnalyticsFacetScope,
   filters: AnalyticsFilters,
   queryOptions: AnalyticsQueryOptions | undefined,
   includeUserFilter: boolean
 ): string {
   const filterSignature = buildFilterValuesCacheSignature(filters, includeUserFilter);
   const queryOptionsSignature = buildQueryOptionsCacheSignature(queryOptions);
-  return `scope=${scope}|includeUser=${includeUserFilter ? '1' : '0'}|filters=${filterSignature}|query=${queryOptionsSignature}`;
+  return `includeUser=${includeUserFilter ? '1' : '0'}|filters=${filterSignature}|query=${queryOptionsSignature}`;
 }
 
 function optionValues(values: SelectOption[] | string[]): Set<string> {
@@ -179,7 +177,6 @@ function canonicaliseFacetFilters(
 class FilterService {
   private async fetchFilterOptionsForFilters(
     snapshotId: number,
-    scope: AnalyticsFacetScope,
     filters: AnalyticsFilters,
     queryOptions: AnalyticsQueryOptions | undefined,
     includeUserFilter: boolean
@@ -187,7 +184,7 @@ class FilterService {
     const cacheKey = buildSnapshotScopedCacheKey(
       CacheKeys.filterOptions,
       snapshotId,
-      buildFilterOptionsCacheSignature(scope, filters, queryOptions, includeUserFilter)
+      buildFilterOptionsCacheSignature(filters, queryOptions, includeUserFilter)
     );
     const cached = getCache<FilterOptions>(cacheKey);
     if (cached) {
@@ -196,7 +193,6 @@ class FilterService {
 
     const [rawOptions, regionRecords, courtVenues, profiles] = await Promise.all([
       taskFactsRepository.fetchOverviewFilterOptionsRows(snapshotId, {
-        scope,
         filters,
         queryOptions,
         includeUserFilter,
@@ -236,31 +232,24 @@ class FilterService {
     return options;
   }
 
-  async fetchFilterOptions(
-    snapshotId: number,
-    queryOptions?: AnalyticsQueryOptions,
-    scope: AnalyticsFacetScope = 'overview'
-  ): Promise<FilterOptions> {
-    return this.fetchFilterOptionsForFilters(snapshotId, scope, {}, queryOptions, true);
+  async fetchFilterOptions(snapshotId: number, queryOptions?: AnalyticsQueryOptions): Promise<FilterOptions> {
+    return this.fetchFilterOptionsForFilters(snapshotId, {}, queryOptions, true);
   }
 
   async fetchFacetedFilterState(
     snapshotId: number,
     filters: AnalyticsFilters,
     params?: {
-      scope?: AnalyticsFacetScope;
       queryOptions?: AnalyticsQueryOptions;
       changedFilter?: FacetFilterKey;
       includeUserFilter?: boolean;
     }
   ): Promise<FacetedFilterState> {
-    const scope = params?.scope ?? 'overview';
     const includeUserFilter = params?.includeUserFilter ?? true;
     const facetFilters = pickFacetFilters(filters, { includeUserFilter });
 
     const initialFilterOptions = await this.fetchFilterOptionsForFilters(
       snapshotId,
-      scope,
       facetFilters,
       params?.queryOptions,
       includeUserFilter
@@ -276,7 +265,6 @@ class FilterService {
       ? initialFilterOptions
       : await this.fetchFilterOptionsForFilters(
           snapshotId,
-          scope,
           canonicalFacetFilters,
           params?.queryOptions,
           includeUserFilter

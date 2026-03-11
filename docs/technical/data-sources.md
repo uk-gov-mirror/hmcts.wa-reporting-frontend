@@ -3,17 +3,17 @@
 ## Databases
 The application connects to three PostgreSQL databases using Prisma clients and raw SQL:
 
-1. Task Management analytics database (`tm`)
-- Purpose: snapshot-backed analytics for work allocation tasks.
+1) Task Management analytics database (tm)
+- Purpose: aggregated and per-task analytics for work allocation tasks.
 - Prisma client: `tmPrisma`.
 - Config prefix: `database.tm`.
 
-2. Caseworker reference database (`crd`)
+2) Caseworker reference database (crd)
 - Purpose: caseworker profiles for user display names.
 - Prisma client: `crdPrisma`.
 - Config prefix: `database.crd`.
 
-3. Location reference database (`lrd`)
+3) Location reference database (lrd)
 - Purpose: region and court venue descriptions.
 - Prisma client: `lrdPrisma`.
 - Config prefix: `database.lrd`.
@@ -21,13 +21,12 @@ The application connects to three PostgreSQL databases using Prisma clients and 
 Connection building:
 - Uses `database.<prefix>.url` when provided; otherwise builds from host/port/user/password/db_name/schema.
 - Optional `schema` is passed via PostgreSQL `search_path` in the connection string.
-- Prisma clients are created with `PrismaPg({ connectionString })`.
+- Prisma clients are created with `PrismaPg({ connectionString })` rather than passing an external `pg.Pool` instance, so adapter/runtime `pg` class checks remain stable across dependency updates.
 
-Performance review:
-- The post-redesign benchmark pass and current remaining opportunities live in [docs/technical/analytics-benchmark-report.md](/Users/danlysiak/development/hmcts/expressjs-speckit-powerbi/docs/technical/analytics-benchmark-report.md).
-- The redesign rationale and original review notes live in [docs/technical/analytics-query-performance-review.md](/Users/danlysiak/development/hmcts/expressjs-speckit-powerbi/docs/technical/analytics-query-performance-review.md).
-- The current schema described below is the implemented post-redesign state.
-- The `analytics` schema is owned in this repository through Flyway migrations under `db/migrations/tm/`.
+Flyway ownership:
+- The analytics schema is owned in this repository under `db/migrations/tm/`.
+- This branch expects the pre-redesign snapshot schema (`snapshot_task_rows`, `snapshot_task_daily_facts`, and `snapshot_filter_facet_facts`).
+- `db/migrations/tm/V003__revert_to_pre_redesign_snapshot_refresh.sql` is the rollback migration that restores that schema in environments previously moved to the redesigned V002 shape.
 
 ```mermaid
 flowchart TB
@@ -36,400 +35,261 @@ flowchart TB
   TMRepo --> TM["TM analytics DB"]
   RefSvc --> CRD["CRD DB (caseworkers)"]
   RefSvc --> LRD["LRD DB (regions/locations)"]
-  TM --> Snapshots["Analytics snapshot tables (analytics.snapshot_*)"]
+  TM --> Snapshots["Analytics snapshot tables (snapshot_*)"]
   Snapshots --> Dashboards["Dashboards"]
 ```
 
-## Snapshot model
-All analytics reads are snapshot-scoped:
+## Core analytics snapshot tables (tm database)
+The application relies on published snapshot tables in the `analytics` schema. Snapshot data tables are immutable and keyed by `snapshot_id`; repository queries read one selected snapshot with:
 
 - `snapshot_id = :snapshotId`
 
-Published snapshots are immutable. The app reads one selected snapshot at a time.
-The application reads these tables only; it does not apply Flyway migrations at startup.
+Minimum columns required are listed below (based on query usage).
 
-### Snapshot metadata
-
-#### analytics.snapshot_batches
-Snapshot lifecycle metadata.
+### analytics.snapshot_batches
+Snapshot metadata for refresh lifecycle and publish history.
 
 Required columns:
-- `snapshot_id`
-- `status`
-- `started_at`
-- `completed_at`
-- `error_message`
+- snapshot_id
+- status
+- started_at
+- completed_at
 
-#### analytics.snapshot_state
-Single-row publish pointer.
+### Snapshot refresh procedure
+Snapshots are built/published by `analytics.run_snapshot_refresh_batch()`.
 
-Required columns:
-- `published_snapshot_id`
-- `published_at`
-- `in_progress_snapshot_id`
-
-## Snapshot refresh procedure
-Snapshots are built and published by `analytics.run_snapshot_refresh_batch()`.
-
-Current refresh shape:
-- Full rebuild from `cft_task_db.reportable_task`.
-- Creates a narrow temp staging table with only the columns and derived values needed by the app.
-- Builds per-snapshot partitions for every snapshot table before publish.
-- Loads thin row tables first, then facts, then page-scoped facet tables.
-- Runs `ANALYZE` on every new partition before publish.
-
-Refresh-time derived values materialised in staging:
-- `wait_time_days`
-- `handling_time_days`
-- `processing_time_days`
-- `days_beyond_due`
-- `within_due_sort_value`
-- `termination_reason_lower`
-
-Refresh-time session settings:
-- Baseline refresh work: `work_mem = 256MB`, `maintenance_work_mem = 1GB`
-- Daily-facts aggregation temporarily uses `work_mem = 1GB`, `hash_mem_multiplier = 4`, `enable_sort = off`
-- Facet aggregation temporarily uses `work_mem = 1GB`, `hash_mem_multiplier = 4`, `enable_sort = off`
-
-Retention:
-- Keeps the published snapshot, any in-progress snapshot, and the latest 3 succeeded snapshots.
-- Drops obsolete partitions for every snapshot table, not just task rows / daily facts.
-- Keeps up to 100 failed batch records.
-
-## Core analytics snapshot tables
-
-### analytics.snapshot_open_task_rows
-Thin row store for row-backed open or otherwise not-completed task views.
-
-Used by:
-- `/users` assigned table and assigned count
-- `/users` assigned total and priority summary when a `User` filter is active
-- `/outstanding` critical tasks table
-
-Row population rule:
-- Includes source rows where `state NOT IN ('COMPLETED', 'TERMINATED')`
-
-Required columns:
-- `snapshot_id`
-- `task_id`
-- `case_id`
-- `task_name`
-- `case_type_label`
-- `jurisdiction_label`
-- `role_category_label`
-- `region`
-- `location`
-- `work_type`
-- `state`
-- `created_date`
-- `first_assigned_date`
-- `due_date`
-- `major_priority`
-- `assignee`
-- `number_of_reassignments`
-
-Notes:
-- The `/users` assigned table adds `state = 'ASSIGNED'` on top of this table.
-- Priority rank is still calculated at query-time from `major_priority`, `due_date`, and `CURRENT_DATE`.
-- Child partitions also create a User Overview-specific partial index for the default assigned-table query: non-Judicial `state = 'ASSIGNED'` rows ordered by `created_date DESC NULLS LAST`.
-
-### analytics.snapshot_completed_task_rows
-Thin row store for completed-task row views.
-
-Used by:
-- `/users` completed table and completed row count
-- `/completed` task audit
-
-Row population rule:
-- Includes source rows where `LOWER(termination_reason) = 'completed'`
-
-Required columns:
-- `snapshot_id`
-- `task_id`
-- `case_id`
-- `task_name`
-- `jurisdiction_label`
-- `role_category_label`
-- `region`
-- `location`
-- `work_type`
-- `created_date`
-- `first_assigned_date`
-- `due_date`
-- `completed_date`
-- `handling_time_days`
-- `is_within_sla`
-- `termination_process_label`
-- `outcome`
-- `major_priority`
-- `assignee`
-- `number_of_reassignments`
-- `within_due_sort_value`
-
-Notes:
-- Child partitions also create a User Overview-specific partial index for the default completed-table query: non-Judicial rows ordered by `completed_date DESC NULLS LAST`.
-
-### analytics.snapshot_user_completed_facts
-Assignee-aware completed-task facts for the User Overview page.
-
-Used by:
-- `/users` completed total
-- `/users` completed summary
-- `/users` completed by date
-- `/users` completed by task name
-
-Population rule:
-- Source rows where `LOWER(termination_reason) = 'completed'` and `completed_date IS NOT NULL`
-- Grouped by assignee, shared slicers, and `completed_date`
-
-Required columns:
-- `snapshot_id`
-- `assignee`
-- `jurisdiction_label`
-- `role_category_label`
-- `region`
-- `location`
-- `task_name`
-- `work_type`
-- `completed_date`
-- `tasks`
-- `within_due`
-- `beyond_due`
-- `handling_time_sum`
-- `handling_time_count`
-- `days_beyond_sum`
-- `days_beyond_count`
-
-Notes:
-- `handling_time_sum` uses `COALESCE(handling_time_days, 0)` so null handling times remain in the task denominator for the `/users` completed-by-task-name table.
-- `days_beyond_sum` uses the refresh-time `days_beyond_due` value derived from `due_date_to_completed_diff_time`, also with nulls treated as zero.
-- `days_beyond_count` preserves `COUNT(*)` semantics for the `/users` completed-by-task-name average.
+- Each run performs a full rebuild from source data before publishing the new snapshot.
+- `analytics.snapshot_task_rows` is partitioned by `snapshot_id`. Each run bulk-loads one per-snapshot table, builds its indexes, then attaches it as that snapshot's partition before publish.
+- `analytics.snapshot_task_daily_facts` is partitioned by `snapshot_id`. Each run inserts into one per-snapshot child table first, then builds that child's indexes, then attaches it as that snapshot's partition before publish.
+- The rebuild transaction sets local memory overrides (`work_mem = 256MB`, `maintenance_work_mem = 1GB`) to reduce sort spill and index-build overhead during refresh.
+- For the task-daily facts step, refresh temporarily increases hash-aggregate headroom (`work_mem = 1GB`, `hash_mem_multiplier = 4`, `enable_sort = off`) and then restores prior session values.
+- For the facet precompute step, refresh temporarily increases hash-aggregate headroom (`work_mem = 1GB`, `hash_mem_multiplier = 4`, `enable_sort = off`) and then restores prior session values.
+- Refresh explicitly runs `ANALYZE` on the newly attached `snapshot_task_rows` partition so query plans have up-to-date stats at publish time.
+- Refresh explicitly runs `ANALYZE` on the newly attached `snapshot_task_daily_facts` partition so query plans have up-to-date stats at publish time.
+- Each run also precomputes snapshot-scoped facet rows in `analytics.snapshot_filter_facet_facts`.
+- Scheduling is registered by application startup when `analytics.snapshotRefreshCronBootstrap.enabled=true`.
+- Startup registration executes in the configured cron metadata database (default `postgres`) and calls `cron.schedule_in_database(...)` so procedure execution runs in `cft_task_db`.
+- Retention cleanup removes obsolete snapshot metadata and drops obsolete `snapshot_task_rows` and `snapshot_task_daily_facts` partitions for those snapshot ids.
 
 ### analytics.snapshot_task_daily_facts
-Shared daily fact table for overview, outstanding, and completed dashboards.
-
-Used by:
-- `/` service overview
-- `/` task events by service
-- `/outstanding` open-task charts/tables backed by daily facts
-- `/users` assigned total and priority summary when no `User` filter is active
-- `/completed` completed summary
-- `/completed` completed timeline
-- `/completed` completed by name / region / location
-- `/completed` processing and handling time
+Used for service overview, events, timelines, completion summaries, and outstanding open-task aggregates (by name, by region/location, and summary totals).
 
 Required columns:
-- `snapshot_id`
-- `date_role`
-- `reference_date`
-- `jurisdiction_label`
-- `role_category_label`
-- `region`
-- `location`
-- `task_name`
-- `work_type`
-- `priority`
-- `task_status`
-- `assignment_state`
-- `sla_flag`
-- `handling_time_days_sum`
-- `handling_time_days_sum_squares`
-- `handling_time_days_count`
-- `processing_time_days_sum`
-- `processing_time_days_sum_squares`
-- `processing_time_days_count`
-- `task_count`
+- snapshot_id
+- jurisdiction_label (service)
+- role_category_label
+- region
+- location
+- task_name
+- work_type
+- assignment_state (Assigned/Unassigned/null)
+- task_status (open/completed/cancelled/other)
+- date_role (created/completed/cancelled/due)
+- reference_date (date)
+- task_count (integer)
+- priority (numeric priority)
+- sla_flag (boolean)
+- handling_time_days_sum
+- handling_time_days_count
+- processing_time_days_sum
+- processing_time_days_count
 
-Date-role semantics:
-- `due`: rows with `due_date IS NOT NULL` and either open-state tasks or completed tasks
-- `created`: rows with `created_date IS NOT NULL`
-- `completed`: completed tasks with `completed_date IS NOT NULL`
-- `cancelled`: cancelled/terminated tasks with `completed_date IS NOT NULL`
+Note:
+- Physical storage is per-snapshot partition (`LIST (snapshot_id)`), while repository SQL continues to read `analytics.snapshot_task_daily_facts` with `snapshot_id = :snapshotId`.
 
-Open-task classification inside daily facts:
-- `open` when `state IN ('ASSIGNED', 'UNASSIGNED', 'PENDING AUTO ASSIGN', 'UNCONFIGURED')`
-- `completed` when `LOWER(termination_reason) = 'completed'`
-- `other` otherwise
+### analytics.snapshot_task_rows
+Used for per-task lists (user overview, critical tasks, task audit), completed-by-task-name aggregates on `/users`, and processing/handling time.
 
-Notes:
-- `/completed` processing and handling time no longer scans row data; it reconstructs averages and population standard deviations from `sum`, `sum_squares`, and `count`.
-- `/users` assigned total and priority summary read this table only when no assignee filter is active, because `snapshot_task_daily_facts` is not assignee-aware.
+Required columns:
+- snapshot_id
+- case_id
+- task_id
+- task_name
+- case_type_label
+- jurisdiction_label
+- role_category_label
+- work_type
+- region
+- location
+- created_date
+- first_assigned_date
+- due_date
+- completed_date
+- handling_time_days
+- handling_time (interval)
+- due_date_to_completed_diff_time (interval)
+- processing_time_days
+- processing_time (interval)
+- is_within_sla (Yes/No/null)
+- state (ASSIGNED/COMPLETED/TERMINATED/etc)
+- termination_reason
+- termination_process_label
+- outcome
+- major_priority (numeric)
+- assignee
+- number_of_reassignments
+- within_due_sort_value (indexed sort rank for within-due ordering)
+
+Note:
+- Physical storage is per-snapshot partition (`LIST (snapshot_id)`), while repository SQL continues to read `analytics.snapshot_task_rows` with `snapshot_id = :snapshotId`.
+- Partition autovacuum uses database defaults (no custom per-partition storage settings in `scripts.sql`).
+- Snapshot refresh does not enforce a unique `(snapshot_id, task_id)` index on `snapshot_task_rows`; task identity uniqueness is not relied on by app read paths.
+- Priority rank is calculated at query-time from `major_priority`, `due_date`, and `CURRENT_DATE`.
+- Row-level repositories return numeric `priority_rank`; labels are mapped in TypeScript when building UI-facing models.
+- Outstanding dashboard open-task aggregate sections do not read from this table in the warm path; they are facts-backed via `snapshot_task_daily_facts`.
+
+### analytics.snapshot_user_completed_facts
+Used for `/users` completed-by-date aggregated chart/table data and facts-backed completed total counting.
+
+Required columns:
+- snapshot_id
+- completed_date
+- task_name
+- work_type
+- tasks
+- within_due
+- beyond_due
+- handling_time_sum
+- handling_time_count
+- days_beyond_sum
+- days_beyond_count
+- assignee (for user filtering)
 
 ### analytics.snapshot_wait_time_by_assigned_date
-Assigned-task wait-time facts.
-
-Used by:
-- `/outstanding` wait time by assigned date
-
-Population rule:
-- Source rows where `state = 'ASSIGNED'` and `wait_time_days IS NOT NULL`
-- Grouped by shared slicers plus `first_assigned_date`
+Used for wait time by assigned date.
 
 Required columns:
-- `snapshot_id`
-- `reference_date`
-- `jurisdiction_label`
-- `role_category_label`
-- `region`
-- `location`
-- `task_name`
-- `work_type`
-- `total_wait_time_days_sum`
-- `assigned_task_count`
+- snapshot_id
+- reference_date
+- work_type
+- assigned_task_count
+- total_wait_time (interval)
 
-### Page-scoped filter facet tables
-The generic `snapshot_filter_facet_facts` table has been replaced with page-scoped facet tables so dropdowns reflect the workload each page actually uses.
+Materialization rule:
+- Rows are aggregated from `analytics.snapshot_task_rows` where `state = 'ASSIGNED'` and `wait_time IS NOT NULL`, grouped by slicer fields plus `first_assigned_date` (`reference_date`).
 
-Common columns:
-- `snapshot_id`
-- `jurisdiction_label`
-- `role_category_label`
-- `region`
-- `location`
-- `task_name`
-- `work_type`
-- `row_count`
+### analytics.snapshot_filter_facet_facts
+Used as the faceted filter source for shared filter dropdown options (service, role category, region, location, task name, work type, assignee) on `/`, `/outstanding`, `/completed`, and `/users`.
 
-User-only extra column:
-- `assignee` on `analytics.snapshot_user_filter_facts` only
+Required columns:
+- snapshot_id
+- jurisdiction_label
+- role_category_label
+- region
+- location
+- task_name
+- work_type
+- assignee
+- row_count
 
-#### analytics.snapshot_overview_filter_facts
-Facet source for `/`.
+Materialization rule:
+- Rows are generated by `analytics.refresh_snapshot_filter_facet_facts(snapshot_id)` during snapshot refresh.
+- Source values come from `analytics.snapshot_task_rows`, grouped by all shared-filter dimensions plus assignee.
+- Blank string values are normalised to `NULL` when rows are materialized.
+- Filter option queries apply all active filters except the currently requested facet, then derive distinct values from this table.
+- Work type display labels are resolved at read-time by joining `cft_task_db.work_types`.
 
-Population rule:
-- Aggregated from `snapshot_task_daily_facts`
-- Includes overview page workloads:
-  - `date_role = 'due' AND task_status = 'open'`
-  - `date_role IN ('created', 'completed', 'cancelled')`
-
-#### analytics.snapshot_outstanding_filter_facts
-Facet source for `/outstanding`.
-
-Population rule:
-- Aggregated from `snapshot_open_task_rows`
-
-Used by:
-- `/outstanding` shared filter options
-- `/outstanding` critical tasks total count
-
-#### analytics.snapshot_completed_filter_facts
-Facet source for `/completed`.
-
-Population rule:
-- Aggregated from `snapshot_completed_task_rows`
-
-#### analytics.snapshot_user_filter_facts
-Facet source for `/users`.
-
-Population rule:
-- Aggregated from:
-  - `snapshot_open_task_rows` where `state = 'ASSIGNED'`
-  - all `snapshot_completed_task_rows`
-- User Overview's Judicial exclusion is applied during this materialisation step as well as at query time.
-
-Notes for all facet tables:
-- Blank strings are normalised to `NULL` at materialisation time.
-- Work type display labels are still resolved at read-time by joining `cft_task_db.work_types`.
-- User Overview still applies its query-time Judicial exclusion when reading row and fact queries.
-
-Flyway ownership note:
-- The current schema shape documented in this file is the target state produced by the repository-owned Flyway migrations under `db/migrations/tm/`.
-- Upstream dependencies remain external: Flyway does not create `cft_task_db.reportable_task` or `cft_task_db.work_types`.
-
-## Reference data
+## Reference data (crd and lrd databases)
 
 ### CRD: vw_case_worker_profile
 Used to map assignee IDs to names.
+On `/outstanding` Critical tasks only, if an assignee ID is present and no CRD match is found, the UI displays `Judge` instead of the raw ID.
 
 Required columns:
-- `case_worker_id`
-- `first_name`
-- `last_name`
-- `email_id`
-- `region_id`
-
-Outstanding-specific rule:
-- On `/outstanding` critical tasks, if an assignee ID exists with no CRD match, the UI shows `Judge`.
+- case_worker_id
+- first_name
+- last_name
+- email_id
+- region_id
 
 ### LRD: region
 Used for region descriptions.
 
 Required columns:
-- `region_id`
-- `description`
+- region_id
+- description
 
 ### LRD: court_venue
 Used for location descriptions.
 
 Required columns:
-- `epimms_id`
-- `site_name`
-- `region_id`
+- epimms_id
+- site_name
+- region_id
 
-## Filter mapping
-Shared filter mappings:
-- Service -> `jurisdiction_label`
-- Role category -> `role_category_label`
-- Region -> `region`
-- Location -> `location`
-- Task name -> `task_name`
-- Work type -> `work_type`
-- User -> `assignee` (User Overview only)
+## Filter mapping to database columns
+The shared filter block maps UI filters to database columns in analytics views:
+- Service -> jurisdiction_label
+- Role category -> role_category_label
+- Region -> region
+- Location -> location
+- Task name -> task_name
+- Work type -> work_type
+- User -> assignee (only in user overview and related queries)
 
-Date filter mappings:
-- `completedFrom` / `completedTo` -> `completed_date` in completed row / user-completed facts, or `reference_date` in completed daily facts
-- `eventsFrom` / `eventsTo` -> `reference_date` in task-daily facts for created / completed / cancelled events
+Work type display values:
+- The filter still submits `work_type` IDs for querying.
+- Dropdown labels are sourced from `cft_task_db.work_types.label` with fallback to the ID when no label is present.
 
-Scoped exclusions:
-- User Overview applies `UPPER(role_category_label) <> 'JUDICIAL'` (null-safe).
-- The Judicial exclusion does not apply on `/`, `/outstanding`, or `/completed`.
+Date filters:
+- completedFrom/completedTo -> completed_date in snapshot_task_rows or reference_date in snapshot_task_daily_facts.
+- eventsFrom/eventsTo -> reference_date in snapshot_task_daily_facts for created/completed/cancelled events.
+- User Overview page applies an additional scoped exclusion: `UPPER(role_category_label) <> 'JUDICIAL'` (null-safe), and this scoped rule is not applied on `/`, `/outstanding`, or `/completed`.
 
-## Derived concepts
+## Derived concepts and calculations
 
-### Priority rank
-Priority rank is calculated in SQL at read time from `major_priority` or `priority` plus `CURRENT_DATE`:
+### Priority rank and label mapping
+Priority is calculated in SQL as a numeric rank using `major_priority` or `priority` with a due-date-aware rule against `CURRENT_DATE`:
+- <= 2000 => 4
+- < 5000 => 3
+- == 5000 and due_date < CURRENT_DATE => 3
+- == 5000 and due_date == CURRENT_DATE => 2
+- else => 1
 
-- `<= 2000 => 4`
-- `< 5000 => 3`
-- `= 5000` and `due_date < CURRENT_DATE => 3`
-- `= 5000` and `due_date = CURRENT_DATE => 2`
-- else `1`
-
-UI label mapping:
-- `4 => Urgent`
-- `3 => High`
-- `2 => Medium`
-- `1 => Low`
+SQL compares rank numbers only. UI-facing labels are mapped in TypeScript:
+- 4 => Urgent
+- 3 => High
+- 2 => Medium
+- 1 (and fallback) => Low
 
 ### Within due date
 Within due date is computed as:
-- `is_within_sla = 'Yes'` when present
-- otherwise `completed_date <= due_date`
+- `is_within_sla == 'Yes'` if present
+- Otherwise, compare completed_date <= due_date
 
 ### Completed-task determination
-Completed-task paths use case-insensitive `termination_reason = 'completed'`.
-Task `state` is not used to classify completion.
+Completed tasks are determined by case-insensitive `termination_reason = 'completed'` across thin/facts query paths. Completed-state values such as `COMPLETED` or `TERMINATED` are not required for completed classification.
 
-### User Overview task-name averages
-`/users` "Completed tasks by task name" preserves the previous averages while reading facts instead of rows:
+### User Overview task-name average calculations
+For `/users` "Completed tasks by task name", averages are calculated from `analytics.snapshot_task_rows` interval columns (not from `snapshot_user_completed_facts` day-difference aggregates):
 
 - Average handling time (days):
-  - `SUM(handling_time_sum) / SUM(tasks)`
+  - `SUM(COALESCE(EXTRACT(EPOCH FROM handling_time) / EXTRACT(EPOCH FROM INTERVAL '1 day'), 0)) / COUNT(*)`
 - Average days beyond due date:
-  - `SUM(days_beyond_sum) / SUM(days_beyond_count)`
+  - `SUM(COALESCE(EXTRACT(EPOCH FROM due_date_to_completed_diff_time) / EXTRACT(EPOCH FROM INTERVAL '1 day'), 0) * -1) / COUNT(*)`
 
-Those fact columns are populated so null intervals still contribute zero to the numerator while remaining in the denominator.
+Both formulas include rows with null intervals in the denominator (`COUNT(*)`) while treating null interval values as zero in the summed numerator.
 
-### Completed processing and handling time
-`/completed` processing/handling time is derived from daily facts:
+### User Overview completed totals
+For `/users` completed total, SQL sums `snapshot_user_completed_facts.tasks` within the selected filter scope:
 
-- Average = `sum / count`
-- Population standard deviation = `sqrt((sum_squares / count) - power(sum / count, 2))`
+- `SELECT COALESCE(SUM(tasks), 0)::int AS total`
 
-This keeps the page facts-backed while preserving the same aggregates as the source row query.
+This facts-backed count preserves User Overview filters (including optional assignee and completed date range filters) while avoiding row-level completed-count scans on `snapshot_task_rows`.
+
+### Created-event determination
+Created events in task daily facts are determined by `created_date IS NOT NULL` (case state does not gate inclusion). For `date_role = 'created'`, `task_status` is derived as:
+- `completed` when `LOWER(termination_reason) = 'completed'`
+- `open` when `state IN ('ASSIGNED', 'UNASSIGNED', 'PENDING AUTO ASSIGN', 'UNCONFIGURED')`
+- `other` otherwise
+
+For `date_role = 'created'`, `assignment_state` is:
+- `Assigned` when `state = 'ASSIGNED'`
+- `Unassigned` when `state IN ('UNASSIGNED', 'PENDING AUTO ASSIGN', 'UNCONFIGURED')`
+- `NULL` otherwise
 
 ## Caching
-NodeCache caches:
+NodeCache caches these datasets to reduce repeated lookups:
 - Filter options
 - Caseworker profiles and names
 - Regions and region descriptions

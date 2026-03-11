@@ -5,7 +5,7 @@
 <h2 class="govuk-heading-m">Tasks due</h2>
 <p class="govuk-body">Completed and open tasks by due date</p>
 {% set tasksDueChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.tasksDue }}'></div>
+  <div class="analytics-chart" data-chart-config='{{ charts.tasksDue | safe }}'></div>
 {% endset %}
 {% set tasksDueTableHtml %}
   <div class="analytics-tab-panel">

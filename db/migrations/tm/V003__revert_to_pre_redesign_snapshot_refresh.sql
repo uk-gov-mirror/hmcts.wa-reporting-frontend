@@ -1,27 +1,32 @@
-CREATE SCHEMA IF NOT EXISTS analytics;
+-- Coordinated rollback migration.
+-- This restores the pre-redesign analytics snapshot schema and refresh
+-- procedure so environments can temporarily return to the earlier refresh
+-- process. It is intended for use only with the matching pre-redesign
+-- application code, because the current branch reads the redesigned
+-- snapshot_* tables introduced by V002.
 
--- ============================================================================
--- Multi-snapshot full-rebuild analytics model with immutable snapshot reads.
--- This script is intentionally rerunnable from scratch via explicit drops.
--- ============================================================================
+CREATE SCHEMA IF NOT EXISTS analytics;
 
 DROP PROCEDURE IF EXISTS analytics.run_snapshot_refresh_batch(BOOLEAN);
 DROP PROCEDURE IF EXISTS analytics.run_snapshot_refresh_batch();
+DROP PROCEDURE IF EXISTS analytics.refresh_snapshot_filter_facts(BIGINT);
 DROP PROCEDURE IF EXISTS analytics.refresh_snapshot_filter_facet_facts(BIGINT);
 
--- Snapshot tables
 DROP TABLE IF EXISTS analytics.snapshot_wait_time_by_assigned_date CASCADE;
-DROP TABLE IF EXISTS analytics.snapshot_filter_facet_facts CASCADE;
+DROP TABLE IF EXISTS analytics.snapshot_user_filter_facts CASCADE;
+DROP TABLE IF EXISTS analytics.snapshot_completed_filter_facts CASCADE;
+DROP TABLE IF EXISTS analytics.snapshot_outstanding_filter_facts CASCADE;
+DROP TABLE IF EXISTS analytics.snapshot_overview_filter_facts CASCADE;
 DROP TABLE IF EXISTS analytics.snapshot_task_daily_facts CASCADE;
 DROP TABLE IF EXISTS analytics.snapshot_user_completed_facts CASCADE;
+DROP TABLE IF EXISTS analytics.snapshot_completed_task_rows CASCADE;
+DROP TABLE IF EXISTS analytics.snapshot_open_task_rows CASCADE;
+DROP TABLE IF EXISTS analytics.snapshot_filter_facet_facts CASCADE;
 DROP TABLE IF EXISTS analytics.snapshot_task_rows CASCADE;
-
--- Metadata/state
 DROP TABLE IF EXISTS analytics.snapshot_state CASCADE;
 DROP TABLE IF EXISTS analytics.snapshot_batches CASCADE;
 DROP SEQUENCE IF EXISTS analytics.snapshot_id_seq;
 
--- Snapshot metadata
 CREATE SEQUENCE analytics.snapshot_id_seq;
 
 CREATE TABLE analytics.snapshot_batches (
@@ -33,7 +38,6 @@ CREATE TABLE analytics.snapshot_batches (
 );
 
 CREATE TABLE analytics.snapshot_state (
-  -- Single-row control table: tracks current publish pointer.
   singleton_id BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton_id),
   published_snapshot_id BIGINT REFERENCES analytics.snapshot_batches(snapshot_id),
   published_at TIMESTAMPTZ,
@@ -42,10 +46,6 @@ CREATE TABLE analytics.snapshot_state (
 
 INSERT INTO analytics.snapshot_state (singleton_id) VALUES (TRUE);
 
--- Snapshot data tables (immutable rows keyed by snapshot_id)
--- snapshot_task_rows and snapshot_task_daily_facts are partitioned by
--- snapshot_id so each refresh can bulk-load one per-snapshot partition, build
--- local indexes once, then attach atomically.
 CREATE TABLE analytics.snapshot_task_rows (
   snapshot_id BIGINT NOT NULL REFERENCES analytics.snapshot_batches(snapshot_id) ON DELETE CASCADE,
   LIKE cft_task_db.reportable_task INCLUDING DEFAULTS,
@@ -117,11 +117,6 @@ CREATE TABLE analytics.snapshot_filter_facet_facts (
   row_count BIGINT NOT NULL
 );
 
--- Autovacuum tuning for high-churn snapshot tables.
--- snapshot_task_rows and snapshot_task_daily_facts are partitioned and use
--- default per-partition autovacuum settings; refresh runs explicit ANALYZE on
--- each new partition before publish.
-
 ALTER TABLE analytics.snapshot_user_completed_facts
   SET (
     autovacuum_vacuum_scale_factor = 0.01,
@@ -146,7 +141,6 @@ ALTER TABLE analytics.snapshot_filter_facet_facts
     autovacuum_analyze_threshold = 1000
   );
 
--- Snapshot indexes
 CREATE INDEX ix_snapshot_task_rows_snapshot_slicers
   ON analytics.snapshot_task_rows(
     snapshot_id,
@@ -389,7 +383,6 @@ BEGIN
 END;
 $$;
 
--- Snapshot producer and publisher
 CREATE OR REPLACE PROCEDURE analytics.run_snapshot_refresh_batch()
 LANGUAGE plpgsql
 AS $$
@@ -434,7 +427,6 @@ BEGIN
   COMMIT;
 
   BEGIN
-    -- Keep heavy refresh aggregations/index builds in memory where possible.
     PERFORM set_config('work_mem', '256MB', TRUE);
     PERFORM set_config('maintenance_work_mem', '1GB', TRUE);
 
@@ -686,8 +678,6 @@ BEGIN
         v_prev_hash_mem_multiplier,
         v_prev_enable_sort;
 
-      -- Bias task-daily aggregation toward in-memory hash aggregate to avoid
-      -- external sort spill on larger snapshots.
       PERFORM set_config('work_mem', '1GB', TRUE);
       PERFORM set_config('hash_mem_multiplier', '4', TRUE);
       PERFORM set_config('enable_sort', 'off', TRUE);
@@ -961,7 +951,6 @@ BEGIN
 
       EXECUTE format('ANALYZE analytics.%I', v_task_daily_partition_name);
 
-      -- Restore baseline refresh-session settings for subsequent statements.
       PERFORM set_config('enable_sort', v_prev_enable_sort, TRUE);
       PERFORM set_config('work_mem', v_prev_work_mem, TRUE);
       PERFORM set_config('hash_mem_multiplier', v_prev_hash_mem_multiplier, TRUE);
@@ -1003,8 +992,6 @@ BEGIN
         first_assigned_date;
     END IF;
 
-    -- Bias facet aggregation toward in-memory hash aggregate to avoid
-    -- external sort spill on larger snapshots.
     v_prev_work_mem := current_setting('work_mem');
     v_prev_hash_mem_multiplier := current_setting('hash_mem_multiplier');
     v_prev_enable_sort := current_setting('enable_sort');
@@ -1015,7 +1002,6 @@ BEGIN
 
     CALL analytics.refresh_snapshot_filter_facet_facts(v_snapshot_id);
 
-    -- Restore baseline refresh-session settings for subsequent statements.
     PERFORM set_config('enable_sort', v_prev_enable_sort, TRUE);
     PERFORM set_config('work_mem', v_prev_work_mem, TRUE);
     PERFORM set_config('hash_mem_multiplier', v_prev_hash_mem_multiplier, TRUE);
@@ -1146,8 +1132,3 @@ BEGIN
   PERFORM pg_advisory_unlock(v_lock_key);
 END;
 $$;
-
--- Snapshot refresh scheduling is registered by application startup when
--- analytics.snapshotRefreshCronBootstrap.enabled=true. Startup registration
--- uses cron.schedule_in_database(...) from the configured cron metadata
--- database (default postgres) targeting this analytics database.

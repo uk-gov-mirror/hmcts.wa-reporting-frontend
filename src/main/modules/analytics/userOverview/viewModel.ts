@@ -425,7 +425,7 @@ export function buildUserOverviewViewModel(params: {
       completedCompliance: completedComplianceChart,
     },
     assignedSummaryRows: [
-      { key: { text: 'Total assigned' }, value: { text: formatNumber(assignedTotalResults) } },
+      { key: { text: 'Total assigned' }, value: { text: formatNumber(overview.assigned.length) } },
       ...buildPriorityRows(overview.prioritySummary).map(row => ({
         key: { text: row.label },
         value: { text: row.value },
