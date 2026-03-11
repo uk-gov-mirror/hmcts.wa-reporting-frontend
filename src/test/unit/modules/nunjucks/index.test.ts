@@ -1,3 +1,4 @@
+import * as path from 'path';
 import type { Express, Request, Response } from 'express';
 
 const boldCellClass = 'govuk-!-font-weight-bold';
@@ -41,6 +42,18 @@ describe('Nunjucks module', () => {
     });
 
     expect(app.set).toHaveBeenCalledWith('view engine', 'njk');
+    expect(configure).toHaveBeenCalledWith(
+      [
+        path.dirname(require.resolve('govuk-frontend/package.json')) + '/dist',
+        path.dirname(require.resolve('@ministryofjustice/frontend/package.json')),
+        expect.stringContaining(path.join('src', 'main', 'views')),
+      ],
+      expect.objectContaining({
+        autoescape: true,
+        watch: true,
+        express: app,
+      })
+    );
     expect(env.addGlobal).toHaveBeenCalledWith('manageCaseBaseUrl', 'http://manage-case');
 
     const formatNumber = filters.formatNumber;
