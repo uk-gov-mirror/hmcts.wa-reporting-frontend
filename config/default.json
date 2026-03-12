@@ -14,7 +14,7 @@
     "filtersCookieName": "wa-reporting-analytics-filters",
     "filtersCookieMaxAgeDays": 365,
     "snapshotRefreshCronBootstrap": {
-      "enabled": true,
+      "enabled": false,
       "jobName": "analytics_snapshot_refresh_batch",
       "schedule": "15,45 * * * *",
       "targetDatabase": "cft_task_db",
