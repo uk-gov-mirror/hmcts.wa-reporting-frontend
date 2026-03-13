@@ -11,6 +11,7 @@
     "lint": "stylelint **/*.scss -v -q && eslint . --ext .js,.ts && prettier --check .",
     "lint:fix": "prettier --write . .github && eslint --fix .",
     "build": "yarn webpack --config webpack.config.js",
+    "bootstrap:tm-schema-permissions": "node scripts/bootstrap-tm-schema-permissions.js",
     "build:watch": "yarn webpack --watch --config webpack.config.js",
     "build:prod": "NODE_ENV=production yarn webpack --mode production --config webpack.config.js && yarn copy:static",
     "copy:static": "node scripts/copy-static.js",

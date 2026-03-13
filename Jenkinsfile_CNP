@@ -28,7 +28,7 @@ withPipeline(type, product, component) {
     )
   }
 
-  def runFlywayMigration = { String environmentName ->
+  def withTmMigrationConnection = { String environmentName, Closure work ->
     withAzureKeyvault(
       azureKeyVaultSecrets: [
         secret('cft-task-POSTGRES-USER-FLEXIBLE-REPLICA', 'TM_DB_MIGRATION_USER'),
@@ -37,7 +37,12 @@ withPipeline(type, product, component) {
       keyVaultURLOverride: "https://wa-${environmentName}.vault.azure.net/"
     ) {
       env.TM_DB_REPLICA_HOST = "cft-task-postgres-db-flexible-replica-${environmentName}.postgres.database.azure.com"
+      work()
+    }
+  }
 
+  def runFlywayMigration = { String environmentName ->
+    withTmMigrationConnection(environmentName) {
       dir("${env.WORKSPACE}/db/flyway") {
         sh '''
         set -eu
@@ -47,6 +52,14 @@ withPipeline(type, product, component) {
           -Dflyway.password="${TM_DB_MIGRATION_PASSWORD}" \
           flywayMigrate
         '''
+      }
+    }
+  }
+
+  def runTmSchemaPermissionsBootstrap = { String environmentName ->
+    withTmMigrationConnection(environmentName) {
+      dir("${env.WORKSPACE}") {
+        yarnBuilder.yarn('bootstrap:tm-schema-permissions')
       }
     }
   }
@@ -79,6 +92,8 @@ withPipeline(type, product, component) {
 
   afterSuccess('buildinfra:prod') {
     runFlywayMigration('prod')
+    env.TM_SCHEMA_PERMISSIONS_DB_READER_USERNAME="DTS JIT Access wa DB Reader SC"
+    runTmSchemaPermissionsBootstrap('prod')
   }
 
   afterAlways('test') {

@@ -110,6 +110,14 @@ Prefer `config.get<T>(...)` with explicit types for clarity, and `config.has(...
 - `TM_DB_*`, `CRD_DB_*`, `LRD_DB_*`
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_KEY`
 - `SESSION_SECRET`, `SESSION_COOKIE_NAME`, `SESSION_APP_COOKIE_NAME`
+- `TM_SCHEMA_PERMISSIONS_DB_READER_USERNAME`
+- `TM_SCHEMA_PERMISSIONS_BOOTSTRAP_URL`
+- `TM_SCHEMA_PERMISSIONS_BOOTSTRAP_HOST`
+- `TM_SCHEMA_PERMISSIONS_BOOTSTRAP_PORT`
+- `TM_SCHEMA_PERMISSIONS_BOOTSTRAP_DATABASE`
+- `TM_SCHEMA_PERMISSIONS_BOOTSTRAP_USER`
+- `TM_SCHEMA_PERMISSIONS_BOOTSTRAP_PASSWORD`
+- `TM_SCHEMA_PERMISSIONS_BOOTSTRAP_OPTIONS`
 
 ## Secrets via Properties Volume
 When not in development, `PropertiesVolume` loads Kubernetes secrets into the configuration under `secrets.wa.*`, including:
@@ -128,6 +136,7 @@ Keep the Key Vault secret lists in `charts/wa-reporting-frontend/values.yaml` an
 - `yarn build:server` compiles server TypeScript to `dist/`.
 - `yarn build:prod` builds assets and copies views/public into `dist/main`.
 - `db/flyway/gradlew` runs repository-owned Flyway commands for the TM analytics schema.
+- `yarn bootstrap:tm-schema-permissions` runs the rerunnable TM analytics schema grants bootstrap.
 
 ### Run
 - `yarn start` runs the compiled server from `dist/main/server.js`.
@@ -161,3 +170,15 @@ Keep the Key Vault secret lists in `charts/wa-reporting-frontend/values.yaml` an
 - Prerequisites:
   - `pg_cron` extension and `cron` schema/functions are available in `cronDatabase`.
   - The application DB role has permissions to read from `cron.job` and execute `cron.unschedule(...)` / `cron.schedule_in_database(...)`.
+
+### TM schema permissions bootstrap
+- `yarn bootstrap:tm-schema-permissions` grants `USAGE` on schema `analytics` and `SELECT` on all tables in that schema to a configured reader role.
+- `TM_SCHEMA_PERMISSIONS_DB_READER_USERNAME` defaults to `DTS JIT Access wa DB Reader SC`.
+- Connection resolution order is:
+  - `TM_SCHEMA_PERMISSIONS_BOOTSTRAP_URL`
+  - `TM_SCHEMA_PERMISSIONS_BOOTSTRAP_HOST` / `PORT` / `DATABASE` / `USER` / `PASSWORD` / `OPTIONS`
+  - fallback TM env vars used by Jenkins or local shells: `TM_DB_PRIMARY_HOST` or `TM_DB_REPLICA_HOST` or `TM_DB_HOST`, plus `TM_DB_MIGRATION_USER` or `TM_DB_USER`, `TM_DB_MIGRATION_PASSWORD` or `TM_DB_PASSWORD`, `TM_DB_NAME`, `TM_DB_PORT`, and `TM_DB_OPTIONS`
+- The bootstrap is safe to rerun because repeated `GRANT` statements are idempotent for the target role.
+- This bootstrap is intentionally external to application startup: the runtime service remains read-only and should continue to use its normal TM read connection.
+- In Jenkins, the Demo and Prod stages invoke the bootstrap directly after Flyway, so stage selection is the environment toggle.
+- The Demo bootstrap overrides `TM_SCHEMA_PERMISSIONS_DB_READER_USERNAME` to `DTS CFT DB Access Reader`; the Prod bootstrap invocation does not set a stage-specific reader username.
