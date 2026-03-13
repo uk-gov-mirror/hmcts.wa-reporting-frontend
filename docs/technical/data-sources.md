@@ -74,9 +74,11 @@ Snapshots are built and published by `analytics.run_snapshot_refresh_batch()`.
 Current refresh shape:
 - Full rebuild from `cft_task_db.reportable_task`.
 - Creates a narrow temp staging table with only the columns and derived values needed by the app.
-- Builds per-snapshot partitions for every snapshot table before publish.
+- Builds detached per-snapshot tables for every snapshot parent before publish.
 - Loads thin row tables first, then facts, then page-scoped facet tables.
-- Runs `ANALYZE` on every new partition before publish.
+- Runs `ANALYZE` on every detached snapshot table before publish.
+- Commits the detached build tables before publish, then opens a short publish transaction that only attaches those tables as partitions and updates `analytics.snapshot_state`.
+- Keeps the previous published snapshot readable during the detached build phase because the live parent tables are not modified until the final attach step.
 
 Refresh-time derived values materialised in staging:
 - `wait_time_days`
@@ -93,7 +95,8 @@ Refresh-time session settings:
 
 Retention:
 - Keeps the published snapshot, any in-progress snapshot, and the latest 3 succeeded snapshots.
-- Drops obsolete partitions for every snapshot table, not just task rows / daily facts.
+- Cleans up obsolete snapshots after publish by first detaching their child tables from the live parents in a short lock-bounded step, then dropping the detached tables.
+- If retention cleanup cannot get the required parent lock quickly, it logs a warning and leaves that obsolete snapshot for a later run.
 - Keeps up to 100 failed batch records.
 
 ## Core analytics snapshot tables

@@ -170,6 +170,9 @@ Keep the Key Vault secret lists in `charts/wa-reporting-frontend/values.yaml` an
 - Prerequisites:
   - `pg_cron` extension and `cron` schema/functions are available in `cronDatabase`.
   - The application DB role has permissions to read from `cron.job` and execute `cron.unschedule(...)` / `cron.schedule_in_database(...)`.
+- Runtime note:
+  - `analytics.run_snapshot_refresh_batch()` now builds detached snapshot tables first and only takes parent-table metadata locks during the short final attach/publish step.
+  - Post-publish retention cleanup uses a short `lock_timeout` while detaching obsolete partitions; if that cleanup cannot obtain the lock quickly it logs a warning and leaves the old snapshot for a later run.
 
 ### TM schema permissions bootstrap
 - `yarn bootstrap:tm-schema-permissions` grants `USAGE` on schema `analytics` and `SELECT` on all tables in that schema to a configured reader role.
