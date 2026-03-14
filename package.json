@@ -43,8 +43,8 @@
     "@opentelemetry/instrumentation": "^0.213.0",
     "@opentelemetry/instrumentation-express": "^0.61.0",
     "@opentelemetry/instrumentation-winston": "^0.57.0",
-    "@prisma/adapter-pg": "^7.4.2",
-    "@prisma/client": "^7.4.2",
+    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
     "axios": "^1.13.6",
     "body-parser": "^2.2.2",
     "compression": "^1.8.1",
@@ -93,7 +93,7 @@
     "@types/express-session": "^1.18.2",
     "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.24",
-    "@types/node": "^25.4.0",
+    "@types/node": "^25.5.0",
     "@types/nunjucks": "^3.2.6",
     "@types/pg": "^8.18.0",
     "@types/plotly.js-basic-dist-min": "^2.12.4",
@@ -127,7 +127,7 @@
     "playwright-core": "^1.58.2",
     "postcss": "^8.5.8",
     "prettier": "^3.8.1",
-    "prisma": "^7.4.2",
+    "prisma": "^7.5.0",
     "sass": "^1.98.0",
     "sass-loader": "^16.0.7",
     "style-loader": "^4.0.0",
@@ -141,7 +141,7 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3",
     "webpack": "^5.105.4",
-    "webpack-cli": "^6.0.1",
+    "webpack-cli": "^7.0.0",
     "webpack-dev-middleware": "^7.4.5",
     "webpack-node-externals": "^3.0.0"
   },
@@ -149,8 +149,7 @@
     "@hono/node-server": "^1.19.11",
     "bn.js": "^5.2.3",
     "hono": "^4.12.7",
-    "lodash": "^4.17.23",
-    "tar": "^7.5.11"
+    "lodash": "^4.17.23"
   },
   "husky": {
     "hooks": {

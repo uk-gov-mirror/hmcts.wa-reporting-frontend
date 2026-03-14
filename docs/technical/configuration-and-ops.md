@@ -130,6 +130,11 @@ Keep the Key Vault secret lists in `charts/wa-reporting-frontend/values.yaml` an
 
 ## Build and runtime
 
+### Package management
+- The repository uses the Yarn release declared by `package.json` `packageManager`.
+- `package.json` may include top-level `resolutions` for transitive packages when upstream dependency ranges do not yet converge on the required version.
+- Dependency upgrades should review each top-level resolution and remove any override that no longer changes the resolved dependency graph.
+
 ### Build
 - `yarn build` builds frontend assets via webpack.
 - `yarn build:watch` rebuilds frontend assets continuously via webpack watch mode.
