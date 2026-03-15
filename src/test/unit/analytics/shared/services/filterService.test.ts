@@ -178,6 +178,48 @@ describe('filterService', () => {
     );
   });
 
+  test('passes through user-overview scope while preserving user-option mapping behaviour', async () => {
+    (getCache as jest.Mock).mockReturnValue(undefined);
+    (taskFactsRepository.fetchOverviewFilterOptionsRows as jest.Mock).mockResolvedValue({
+      services: [{ value: 'Service A' }],
+      roleCategories: [{ value: 'Ops' }],
+      regions: [],
+      locations: [],
+      taskNames: [],
+      workTypes: [],
+      assignees: [{ value: 'user-1' }, { value: 'user-2' }],
+    });
+    (regionService.fetchRegions as jest.Mock).mockResolvedValue([]);
+    (courtVenueService.fetchCourtVenues as jest.Mock).mockResolvedValue([]);
+    (caseWorkerProfileService.fetchCaseWorkerProfiles as jest.Mock).mockResolvedValue([
+      { case_worker_id: 'user-2', first_name: 'Alex', last_name: 'P', email_id: 'alex@example.com', region_id: 2 },
+      { case_worker_id: 'user-1', first_name: 'Sam', last_name: 'Lee', email_id: 'sam@example.com', region_id: 1 },
+    ]);
+
+    const result = await filterService.fetchFilterOptions(
+      snapshotId,
+      { excludeRoleCategories: ['Judicial'] },
+      'userOverview'
+    );
+
+    expect(taskFactsRepository.fetchOverviewFilterOptionsRows).toHaveBeenCalledWith(snapshotId, {
+      scope: 'userOverview',
+      filters: {},
+      queryOptions: { excludeRoleCategories: ['Judicial'] },
+      includeUserFilter: true,
+    });
+    expect(result.users).toEqual([
+      { value: '', text: 'All users' },
+      { value: 'user-2', text: 'Alex P (alex@example.com)' },
+      { value: 'user-1', text: 'Sam Lee (sam@example.com)' },
+    ]);
+    expect(buildSnapshotScopedCacheKey).toHaveBeenCalledWith(
+      CacheKeys.filterOptions,
+      snapshotId,
+      'scope=userOverview|includeUser=1|filters=none|query=excludeRoleCategories=JUDICIAL'
+    );
+  });
+
   test('prunes conflicting non-changed selections and refetches options for canonical filters', async () => {
     (getCache as jest.Mock).mockReturnValue(undefined);
     (taskFactsRepository.fetchOverviewFilterOptionsRows as jest.Mock)

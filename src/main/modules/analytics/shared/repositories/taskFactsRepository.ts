@@ -53,6 +53,16 @@ type OverviewFilterOptionsParams = {
 
 type OverviewFilterOptionsInput = OverviewFilterOptionsParams | AnalyticsQueryOptions | undefined;
 
+const overviewFacetFilterKeys: OverviewFacetFilterKey[] = [
+  'service',
+  'roleCategory',
+  'region',
+  'location',
+  'taskName',
+  'workType',
+  'user',
+];
+
 function buildUserOverviewCompletedFactsWhere(
   snapshotId: number,
   filters: AnalyticsFilters,
@@ -95,6 +105,132 @@ export class TaskFactsRepository {
       return params as OverviewFilterOptionsParams;
     }
     return { queryOptions: params as AnalyticsQueryOptions };
+  }
+
+  private hasActiveOverviewFacetFilters(filters: AnalyticsFilters, includeUserFilter: boolean): boolean {
+    return overviewFacetFilterKeys.some(key => {
+      if (!includeUserFilter && key === 'user') {
+        return false;
+      }
+
+      const values = filters[key];
+      return Array.isArray(values) && values.length > 0;
+    });
+  }
+
+  private shouldUseUnfilteredUserOverviewOptionsFastPath(params: {
+    scope: AnalyticsFacetScope;
+    filters: AnalyticsFilters;
+    includeUserFilter: boolean;
+  }): boolean {
+    return (
+      params.scope === 'userOverview' &&
+      params.includeUserFilter &&
+      !this.hasActiveOverviewFacetFilters(params.filters, params.includeUserFilter)
+    );
+  }
+
+  private buildUnfilteredUserOverviewFilterOptionsQuery(
+    snapshotId: number,
+    queryOptions?: AnalyticsQueryOptions
+  ): Prisma.Sql {
+    const whereClause = buildAnalyticsWhere({}, [asOfSnapshotCondition(snapshotId)], queryOptions);
+
+    return Prisma.sql`
+      WITH grouped_options AS (
+        SELECT
+          CASE
+            WHEN GROUPING(jurisdiction_label) = 0 THEN 'service'
+            WHEN GROUPING(role_category_label) = 0 THEN 'roleCategory'
+            WHEN GROUPING(region) = 0 THEN 'region'
+            WHEN GROUPING(location) = 0 THEN 'location'
+            WHEN GROUPING(task_name) = 0 THEN 'taskName'
+            WHEN GROUPING(work_type) = 0 THEN 'workType'
+            WHEN GROUPING(assignee) = 0 THEN 'assignee'
+          END AS option_type,
+          CASE
+            WHEN GROUPING(jurisdiction_label) = 0 THEN jurisdiction_label::text
+            WHEN GROUPING(role_category_label) = 0 THEN role_category_label::text
+            WHEN GROUPING(region) = 0 THEN region::text
+            WHEN GROUPING(location) = 0 THEN location::text
+            WHEN GROUPING(task_name) = 0 THEN task_name::text
+            WHEN GROUPING(work_type) = 0 THEN work_type::text
+            WHEN GROUPING(assignee) = 0 THEN assignee::text
+          END AS value
+        FROM analytics.snapshot_user_filter_facts
+        ${whereClause}
+        GROUP BY GROUPING SETS (
+          (jurisdiction_label),
+          (role_category_label),
+          (region),
+          (location),
+          (task_name),
+          (work_type),
+          (assignee)
+        )
+        HAVING
+          (GROUPING(jurisdiction_label) = 0 AND jurisdiction_label IS NOT NULL)
+          OR (GROUPING(role_category_label) = 0 AND role_category_label IS NOT NULL AND BTRIM(role_category_label) <> '')
+          OR (GROUPING(region) = 0 AND region IS NOT NULL)
+          OR (GROUPING(location) = 0 AND location IS NOT NULL)
+          OR (GROUPING(task_name) = 0 AND task_name IS NOT NULL)
+          OR (GROUPING(work_type) = 0 AND work_type IS NOT NULL)
+          OR (GROUPING(assignee) = 0 AND assignee IS NOT NULL)
+      )
+      SELECT
+        grouped_options.option_type,
+        grouped_options.value,
+        CASE
+          WHEN grouped_options.option_type = 'workType'
+            THEN COALESCE(work_types.label, grouped_options.value)
+          ELSE grouped_options.value
+        END AS text
+      FROM grouped_options
+      LEFT JOIN cft_task_db.work_types work_types
+        ON grouped_options.option_type = 'workType'
+       AND work_types.work_type_id = grouped_options.value
+      ORDER BY grouped_options.option_type ASC, text ASC, grouped_options.value ASC
+    `;
+  }
+
+  private mapOverviewFilterOptionRows(optionRows: OverviewFilterOptionRow[]): OverviewFilterOptionsRows {
+    const services: FilterValueRow[] = [];
+    const roleCategories: FilterValueRow[] = [];
+    const regions: FilterValueRow[] = [];
+    const locations: FilterValueRow[] = [];
+    const taskNames: FilterValueRow[] = [];
+    const workTypes: FilterValueWithTextRow[] = [];
+    const assignees: FilterValueRow[] = [];
+
+    for (const row of optionRows) {
+      switch (row.option_type) {
+        case 'service':
+          services.push({ value: row.value });
+          break;
+        case 'roleCategory':
+          roleCategories.push({ value: row.value });
+          break;
+        case 'region':
+          regions.push({ value: row.value });
+          break;
+        case 'location':
+          locations.push({ value: row.value });
+          break;
+        case 'taskName':
+          taskNames.push({ value: row.value });
+          break;
+        case 'workType':
+          workTypes.push({ value: row.value, text: row.text });
+          break;
+        case 'assignee':
+          assignees.push({ value: row.value });
+          break;
+        default:
+          break;
+      }
+    }
+
+    return { services, roleCategories, regions, locations, taskNames, workTypes, assignees };
   }
 
   private buildOverviewFacetWhereClause(params: {
@@ -186,6 +322,20 @@ export class TaskFactsRepository {
     const filters = resolved.filters ?? {};
     const queryOptions = resolved.queryOptions;
     const includeUserFilter = resolved.includeUserFilter ?? true;
+
+    if (
+      this.shouldUseUnfilteredUserOverviewOptionsFastPath({
+        scope,
+        filters,
+        includeUserFilter,
+      })
+    ) {
+      const optionRows = await tmPrisma.$queryRaw<OverviewFilterOptionRow[]>(
+        this.buildUnfilteredUserOverviewFilterOptionsQuery(snapshotId, queryOptions)
+      );
+      return this.mapOverviewFilterOptionRows(optionRows);
+    }
+
     const tableName = this.filterFactsTable(scope);
 
     const optionBranches: Prisma.Sql[] = [];
@@ -335,43 +485,7 @@ export class TaskFactsRepository {
       ORDER BY deduped_options.option_type ASC, text ASC, deduped_options.value ASC
     `);
 
-    const services: FilterValueRow[] = [];
-    const roleCategories: FilterValueRow[] = [];
-    const regions: FilterValueRow[] = [];
-    const locations: FilterValueRow[] = [];
-    const taskNames: FilterValueRow[] = [];
-    const workTypes: FilterValueWithTextRow[] = [];
-    const assignees: FilterValueRow[] = [];
-
-    for (const row of optionRows) {
-      switch (row.option_type) {
-        case 'service':
-          services.push({ value: row.value });
-          break;
-        case 'roleCategory':
-          roleCategories.push({ value: row.value });
-          break;
-        case 'region':
-          regions.push({ value: row.value });
-          break;
-        case 'location':
-          locations.push({ value: row.value });
-          break;
-        case 'taskName':
-          taskNames.push({ value: row.value });
-          break;
-        case 'workType':
-          workTypes.push({ value: row.value, text: row.text });
-          break;
-        case 'assignee':
-          assignees.push({ value: row.value });
-          break;
-        default:
-          break;
-      }
-    }
-
-    return { services, roleCategories, regions, locations, taskNames, workTypes, assignees };
+    return this.mapOverviewFilterOptionRows(optionRows);
   }
 
   async fetchOpenTasksCreatedByAssignmentRows(snapshotId: number, filters: AnalyticsFilters): Promise<AssignmentRow[]> {

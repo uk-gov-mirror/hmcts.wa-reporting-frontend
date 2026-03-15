@@ -154,6 +154,44 @@ describe('taskFactsRepository', () => {
     expect(queryCall().sql).toContain('FROM analytics.snapshot_overview_filter_facts');
   });
 
+  test('uses the grouping-sets fast path for unfiltered user-overview filter options', async () => {
+    await taskFactsRepository.fetchOverviewFilterOptionsRows(snapshotId, {
+      scope: 'userOverview',
+      filters: {},
+      queryOptions: { excludeRoleCategories: ['Judicial'] },
+      includeUserFilter: true,
+    });
+
+    const query = queryCall();
+    const normalised = normaliseSql(query.sql);
+
+    expect(normalised).toContain('FROM analytics.snapshot_user_filter_facts');
+    expect(normalised).toContain('GROUP BY GROUPING SETS');
+    expect(normalised).toContain('LEFT JOIN cft_task_db.work_types');
+    expect(normalised).not.toContain('WITH option_rows AS');
+    expect(normalised).not.toContain("SELECT 'service'::text AS option_type");
+    expect(query.values).toEqual(expect.arrayContaining([snapshotId, 'JUDICIAL']));
+  });
+
+  test('keeps the branch-specific fallback path for filtered user-overview filter options', async () => {
+    await taskFactsRepository.fetchOverviewFilterOptionsRows(snapshotId, {
+      scope: 'userOverview',
+      filters: { service: ['Service A'] },
+      queryOptions: { excludeRoleCategories: ['Judicial'] },
+      includeUserFilter: true,
+    });
+
+    const query = queryCall();
+    const normalised = normaliseSql(query.sql);
+
+    expect(normalised).toContain('WITH option_rows AS');
+    expect(normalised).toContain('FROM analytics.snapshot_user_filter_facts');
+    expect(normalised).toContain("SELECT 'service'::text AS option_type");
+    expect(normalised).toContain("SELECT 'assignee'::text AS option_type");
+    expect(normalised).not.toContain('GROUP BY GROUPING SETS');
+    expect(query.values).toEqual(expect.arrayContaining([snapshotId, 'Service A', 'JUDICIAL']));
+  });
+
   test('adds assignee filtering to non-user facets and ignores unknown option types', async () => {
     (tmPrisma.$queryRaw as jest.Mock).mockResolvedValueOnce([
       { option_type: 'service', value: 'Civil', text: 'Civil' },
