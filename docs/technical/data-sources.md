@@ -75,6 +75,7 @@ Snapshots are built and published by `analytics.run_snapshot_refresh_batch()`.
 
 Current refresh shape:
 - Full rebuild from `cft_task_db.reportable_task`.
+- `analytics.run_snapshot_refresh_batch()` now acts as a coordinator over internal helpers for temp-table staging, detached partition creation, detached data population, core index creation, filter-fact materialisation, and filter-index creation.
 - Creates a narrow temp staging table with only the columns and derived values needed by the app.
 - Builds detached per-snapshot tables for every snapshot parent before publish.
 - Loads thin row tables first, then facts, then page-scoped facet tables.
@@ -447,6 +448,7 @@ Notes for all facet tables:
 
 Flyway ownership note:
 - The current schema shape documented in this file is the target state produced by the repository-owned Flyway migrations under `db/migrations/tm/`.
+- `db/current-state/tm-analytics-schema.sql` is the rerunnable current-state mirror of that end state for local and disposable rebuild workflows; it is maintained alongside the migrations but is not migration history.
 - Upstream dependencies remain external: Flyway does not create `cft_task_db.reportable_task` or `cft_task_db.work_types`.
 
 ## Reference data
