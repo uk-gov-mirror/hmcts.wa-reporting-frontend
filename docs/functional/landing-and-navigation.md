@@ -69,5 +69,8 @@ CSV export:
 - Each partial has a `data-section` ID that ties the response to the correct HTML fragment.
 
 ## Error and empty states
-- If a partial fails to load via AJAX, the UI falls back to a full page submission.
+- If a section query fails on the server but the page builder can safely fall back, the response still returns HTTP 200 and the affected analytics section renders an inline warning state instead of silently showing fallback data.
+- If a section refresh fails via AJAX with a network or server error, the failure is contained to that section. The page stays on the current screen, the affected section shows an inline warning, and the user can retry that section refresh without reloading the entire page.
+- If the browser leaves the current analytics page while section AJAX requests are still in flight, those requests are cancelled so an older page cannot reload itself after navigation.
+- Full page navigation is reserved for hard failures such as missing section targets or auth/session/CSRF redirects.
 - Certain sections show empty-state messages (for example, task audit without a case ID).

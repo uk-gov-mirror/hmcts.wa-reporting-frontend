@@ -3,6 +3,7 @@ import { formatDatePickerValue, formatNumber, formatPercent } from '../shared/fo
 import { FilterOptions } from '../shared/services';
 import { AnalyticsFilters, OverviewResponse } from '../shared/types';
 import { FilterOptionsViewModel } from '../shared/viewModels/filterOptions';
+import type { AnalyticsSectionErrors } from '../shared/viewModels/sectionErrors';
 
 type TaskEventsRow = {
   service: string;
@@ -21,6 +22,7 @@ type OverviewViewModel = FilterOptionsViewModel & {
   snapshotId?: number;
   snapshotToken?: string;
   freshnessInsetText: string;
+  sectionErrors: AnalyticsSectionErrors<'overview-service-performance' | 'overview-task-events' | 'shared-filters'>;
   rows: OverviewResponse['serviceRows'];
   totals: OverviewResponse['totals'];
   tableRows: TableRows;
@@ -101,6 +103,7 @@ export function buildOverviewViewModel(params: {
   taskEventsTotals: TaskEventsRow;
   eventsRange: { from: Date; to: Date };
   freshnessInsetText?: string;
+  sectionErrors: AnalyticsSectionErrors<'overview-service-performance' | 'overview-task-events' | 'shared-filters'>;
 }): OverviewViewModel {
   const {
     filters,
@@ -113,6 +116,7 @@ export function buildOverviewViewModel(params: {
     taskEventsTotals,
     eventsRange,
     freshnessInsetText = 'Data freshness unavailable.',
+    sectionErrors,
   } = params;
   const filterViewModel = buildFilterOptionsViewModel(filterOptions, allTasks);
   const sortedRows = [...overview.serviceRows].sort((a, b) => a.service.localeCompare(b.service));
@@ -122,6 +126,7 @@ export function buildOverviewViewModel(params: {
     snapshotId,
     snapshotToken,
     freshnessInsetText,
+    sectionErrors,
     ...filterViewModel,
     rows: sortedRows,
     totals: overview.totals,

@@ -4,6 +4,7 @@ import { initAll } from 'govuk-frontend';
 
 import type { AjaxDeps } from '../../../../main/assets/js/analytics/ajax';
 import {
+  browserLocation,
   buildUrlEncodedBody,
   fetchPaginatedSection,
   fetchSectionUpdate,
@@ -13,6 +14,7 @@ import {
   initAjaxInitialSections,
   postAjaxForm,
 } from '../../../../main/assets/js/analytics/ajax';
+import { createSectionRequestManager } from '../../../../main/assets/js/analytics/requestManager';
 
 import { setupAnalyticsDom } from './analyticsTestUtils';
 
@@ -34,24 +36,87 @@ describe('analytics ajax', () => {
       initAll,
       initMojAll,
       rebindSectionBehaviors: jest.fn(),
+      requests: createSectionRequestManager(),
     };
   });
 
-  test('falls back to full submit when ajax requests fail', async () => {
+  test('renders an inline error instead of full submit when a section request fails', async () => {
     const form = document.createElement('form');
     form.dataset.ajaxSection = 'summary';
     form.action = '/';
     const submitSpy = jest.spyOn(form, 'submit').mockImplementation(() => {});
     document.body.appendChild(form);
+
+    const section = document.createElement('div');
+    section.dataset.section = 'summary';
+    section.innerHTML = '<p>Existing content</p>';
+    document.body.appendChild(section);
+
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await fetchSectionUpdate(form, 'summary', ajaxDeps);
+
+    expect(submitSpy).not.toHaveBeenCalled();
+    expect(section.textContent).toContain('This section could not be updated. Try again.');
+    expect(section.textContent).toContain('Retry section');
+    expect(errorSpy).toHaveBeenCalledWith('Failed to update section', expect.any(Error));
+    errorSpy.mockRestore();
+  });
+
+  test('retry button re-runs a failed section request', async () => {
+    const form = document.createElement('form');
+    form.action = '/';
+    form.method = 'POST';
+    document.body.appendChild(form);
+
+    const section = document.createElement('div');
+    section.dataset.section = 'summary';
+    document.body.appendChild(section);
+
+    global.fetch = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce({
+        ok: true,
+        text: async () => '<p>Recovered</p>',
+      }) as unknown as typeof fetch;
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    await fetchSectionUpdate(form, 'summary', ajaxDeps);
+    const retryButton = section.querySelector<HTMLButtonElement>('button');
+    retryButton?.click();
+    await flushPromises();
+
+    expect(section.innerHTML).toContain('Recovered');
+    expect(section.querySelector('[data-section-request-error="true"]')).toBeNull();
+    errorSpy.mockRestore();
+  });
+
+  test('does not retry again when the retry button is already disabled', async () => {
+    const form = document.createElement('form');
+    form.action = '/';
+    form.method = 'POST';
+    document.body.appendChild(form);
+
     const section = document.createElement('div');
     section.dataset.section = 'summary';
     document.body.appendChild(section);
 
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
     await fetchSectionUpdate(form, 'summary', ajaxDeps);
 
-    expect(submitSpy).toHaveBeenCalled();
+    const retryButton = section.querySelector<HTMLButtonElement>('button');
+    if (!retryButton) {
+      throw new Error('Expected retry button to exist');
+    }
+    retryButton.disabled = true;
+    retryButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await flushPromises();
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
     errorSpy.mockRestore();
   });
 
@@ -85,13 +150,17 @@ describe('analytics ajax', () => {
     }
     global.FormData = MockFormData as unknown as typeof FormData;
     const params = buildUrlEncodedBody(form, { extra: 'value' });
+    const paramsWithoutExtra = buildUrlEncodedBody(form);
     global.FormData = originalFormData;
     expect(params.get('search')).toBe('alpha');
     expect(params.get('upload')).toBe('file.txt');
     expect(params.get('extra')).toBe('value');
+    expect(paramsWithoutExtra.get('extra')).toBeNull();
 
     const section = document.createElement('div');
     section.dataset.section = 'outstanding-critical-tasks';
+    section.dataset.ajaxLoaded = 'true';
+    section.innerHTML = '<p>Existing page</p>';
     document.body.appendChild(section);
 
     global.fetch = jest.fn().mockResolvedValue({
@@ -115,16 +184,18 @@ describe('analytics ajax', () => {
     expect(missingSubmitSpy).toHaveBeenCalled();
   });
 
-  test('falls back when paginated updates fail', async () => {
+  test('keeps previous content when paginated and sorted updates fail', async () => {
     const form = document.createElement('form');
     form.action = '/outstanding';
     form.method = 'POST';
     form.submit = jest.fn();
     document.body.appendChild(form);
 
-    const section = document.createElement('div');
-    section.dataset.section = 'outstanding-critical-tasks';
-    document.body.appendChild(section);
+    const paginatedSection = document.createElement('div');
+    paginatedSection.dataset.section = 'outstanding-critical-tasks';
+    paginatedSection.dataset.ajaxLoaded = 'true';
+    paginatedSection.innerHTML = '<p>Existing page</p>';
+    document.body.appendChild(paginatedSection);
 
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -138,7 +209,40 @@ describe('analytics ajax', () => {
       ajaxDeps
     );
 
-    expect(form.submit).toHaveBeenCalled();
+    expect(form.submit).not.toHaveBeenCalled();
+    expect(paginatedSection.textContent).toContain('Existing page');
+    expect(paginatedSection.textContent).toContain('Retry section');
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      redirected: false,
+      status: 200,
+      text: async () => '<div>paginated-recovered</div>',
+    });
+    paginatedSection.querySelector<HTMLButtonElement>('button')?.click();
+    await flushPromises();
+    expect(paginatedSection.innerHTML).toContain('paginated-recovered');
+
+    const sortedSection = document.createElement('div');
+    sortedSection.dataset.section = 'user-overview-assigned';
+    sortedSection.dataset.ajaxLoaded = 'true';
+    sortedSection.innerHTML = '<span>sorted-existing</span>';
+    document.body.appendChild(sortedSection);
+
+    await fetchSortedSection(form, 'assigned', 'user-overview-assigned', ajaxDeps);
+    expect(form.submit).not.toHaveBeenCalled();
+    expect(sortedSection.textContent).toContain('sorted-existing');
+    expect(sortedSection.textContent).toContain('Retry section');
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      redirected: false,
+      status: 200,
+      text: async () => '<div>sorted-recovered</div>',
+    });
+    sortedSection.querySelector<HTMLButtonElement>('button')?.click();
+    await flushPromises();
+    expect(sortedSection.innerHTML).toContain('sorted-recovered');
     expect(errorSpy).toHaveBeenCalled();
     errorSpy.mockRestore();
   });
@@ -151,15 +255,89 @@ describe('analytics ajax', () => {
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
+      redirected: false,
+      status: 200,
       text: async () => '<span>ok</span>',
     }) as unknown as typeof fetch;
 
-    await postAjaxForm(form, {});
+    const result = await postAjaxForm(form, {});
 
     expect(global.fetch).toHaveBeenCalledWith(window.location.pathname, expect.objectContaining({ method: 'POST' }));
+    expect(result).toEqual({ kind: 'html', html: '<span>ok</span>' });
   });
 
-  test('handles missing sections and failed pagination updates', async () => {
+  test('postAjaxForm returns a navigation result for redirects and forbidden responses', async () => {
+    const form = document.createElement('form');
+    form.action = '/completed';
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      redirected: true,
+      status: 200,
+      url: 'http://localhost/login',
+    }) as unknown as typeof fetch;
+
+    await expect(postAjaxForm(form, {})).resolves.toEqual({
+      kind: 'navigate',
+      url: 'http://localhost/login',
+    });
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      redirected: false,
+      status: 403,
+      url: 'http://localhost/completed',
+    }) as unknown as typeof fetch;
+
+    await expect(postAjaxForm(form, {})).resolves.toEqual({
+      kind: 'navigate',
+      url: 'http://localhost/completed',
+    });
+
+    Object.defineProperty(form, 'action', { value: '', writable: true });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      redirected: true,
+      status: 200,
+      url: '',
+    }) as unknown as typeof fetch;
+
+    await expect(postAjaxForm(form, {})).resolves.toEqual({
+      kind: 'navigate',
+      url: window.location.pathname,
+    });
+  });
+
+  test('navigates away for redirected ajax responses and aborts tracked requests', async () => {
+    const form = document.createElement('form');
+    form.action = '/completed';
+    form.method = 'POST';
+    document.body.appendChild(form);
+
+    const section = document.createElement('div');
+    section.dataset.section = 'summary';
+    document.body.appendChild(section);
+
+    const locationAssignSpy = jest.spyOn(browserLocation, 'locationAssign').mockImplementation(() => {});
+    const abortAllSpy = jest.spyOn(ajaxDeps.requests, 'abortAll');
+
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      redirected: true,
+      status: 200,
+      url: 'http://localhost/login',
+    }) as unknown as typeof fetch;
+
+    await fetchSectionUpdate(form, 'summary', ajaxDeps);
+
+    expect(abortAllSpy).toHaveBeenCalled();
+    expect(locationAssignSpy).toHaveBeenCalledWith('http://localhost/login');
+
+    locationAssignSpy.mockRestore();
+    abortAllSpy.mockRestore();
+  });
+
+  test('handles missing sections but does not full submit on ordinary failures', async () => {
     const form = document.createElement('form');
     form.submit = jest.fn();
     document.body.appendChild(form);
@@ -167,43 +345,31 @@ describe('analytics ajax', () => {
     await fetchSectionUpdate(form, 'missing-section', ajaxDeps);
     expect(form.submit).toHaveBeenCalled();
 
+    const failingSection = document.createElement('div');
+    failingSection.dataset.section = 'user-overview-assigned';
+    document.body.appendChild(failingSection);
+
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const sortedSection = document.createElement('div');
-    sortedSection.dataset.section = 'user-overview-assigned';
-    document.body.appendChild(sortedSection);
 
     await fetchSortedSection(form, 'assigned', 'user-overview-assigned', ajaxDeps);
-    expect(form.submit).toHaveBeenCalled();
+    expect(form.submit).toHaveBeenCalledTimes(1);
+    expect(failingSection.textContent).toContain('This section could not be updated. Try again.');
 
     await fetchSortedSection(form, 'assigned', 'missing', ajaxDeps);
-    expect(form.submit).toHaveBeenCalled();
+    expect(form.submit).toHaveBeenCalledTimes(2);
 
     form.action = '/users';
     form.method = 'POST';
-
-    const defaultSection = sortedSection;
-
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
-      text: async () => '<span>sorted</span>',
+      redirected: false,
+      status: 200,
+      text: async () => '<span>sorted-default</span>',
     }) as unknown as typeof fetch;
 
     await fetchSortedSection(form, 'assigned', undefined, ajaxDeps);
-    expect(defaultSection.innerHTML).toContain('sorted');
-
-    const paginatedSection = document.createElement('div');
-    paginatedSection.dataset.section = 'outstanding-critical-tasks';
-    document.body.appendChild(paginatedSection);
-    await fetchPaginatedSection(
-      form,
-      'outstanding-critical-tasks',
-      'criticalTasks',
-      'criticalTasksPage',
-      '2',
-      ajaxDeps
-    );
-    expect(form.submit).toHaveBeenCalled();
+    expect(failingSection.innerHTML).toContain('sorted-default');
     errorSpy.mockRestore();
   });
 
@@ -218,6 +384,8 @@ describe('analytics ajax', () => {
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
+      redirected: false,
+      status: 200,
       text: async () => '<p>Updated</p>',
     }) as unknown as typeof fetch;
 
@@ -326,6 +494,8 @@ describe('analytics ajax', () => {
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
+      redirected: false,
+      status: 200,
       text: async () => '<div>Shared filters updated</div>',
     }) as unknown as typeof fetch;
 
@@ -352,6 +522,8 @@ describe('analytics ajax', () => {
 
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
+      redirected: false,
+      status: 200,
       text: async () => '<div>Shared filters updated</div>',
     }) as unknown as typeof fetch;
 
@@ -372,6 +544,7 @@ describe('analytics ajax', () => {
 
     const sharedFiltersSection = document.createElement('div');
     sharedFiltersSection.dataset.section = 'shared-filters';
+    sharedFiltersSection.innerHTML = '<form><p>Filters</p></form>';
     document.body.appendChild(sharedFiltersSection);
 
     const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -383,11 +556,23 @@ describe('analytics ajax', () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('boom')) as unknown as typeof fetch;
     await fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
     expect(errorSpy).toHaveBeenCalledWith('Failed to update shared filters', expect.any(Error));
+    expect(sharedFiltersSection.textContent).toContain('Filters');
+    expect(sharedFiltersSection.textContent).toContain('Retry section');
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      redirected: false,
+      status: 200,
+      text: async () => '<div>Shared filters recovered</div>',
+    });
+    sharedFiltersSection.querySelector<HTMLButtonElement>('button')?.click();
+    await flushPromises();
+    expect(sharedFiltersSection.innerHTML).toContain('Shared filters recovered');
 
     errorSpy.mockRestore();
   });
 
-  test('fetchSharedFiltersUpdate ignores stale aborted responses from earlier requests', async () => {
+  test('shared filters and ordinary sections ignore stale responses from earlier requests', async () => {
     const form = document.createElement('form');
     form.dataset.analyticsFilters = 'true';
     form.action = '/';
@@ -398,57 +583,87 @@ describe('analytics ajax', () => {
     sharedFiltersSection.dataset.section = 'shared-filters';
     document.body.appendChild(sharedFiltersSection);
 
-    let resolveFirst: ((response: { ok: boolean; text: () => Promise<string> }) => void) | undefined;
-    let resolveSecond: ((response: { ok: boolean; text: () => Promise<string> }) => void) | undefined;
+    let resolveFirstShared:
+      | ((response: { ok: boolean; redirected: boolean; status: number; text: () => Promise<string> }) => void)
+      | undefined;
+    let resolveSecondShared:
+      | ((response: { ok: boolean; redirected: boolean; status: number; text: () => Promise<string> }) => void)
+      | undefined;
     let callIndex = 0;
     global.fetch = jest.fn().mockImplementation(() => {
       callIndex += 1;
       return new Promise(resolve => {
         if (callIndex === 1) {
-          resolveFirst = resolve;
+          resolveFirstShared = resolve;
         } else {
-          resolveSecond = resolve;
+          resolveSecondShared = resolve;
         }
       });
     }) as unknown as typeof fetch;
 
-    const firstCall = fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
+    const firstSharedCall = fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
     await Promise.resolve();
-    const secondCall = fetchSharedFiltersUpdate(form, 'region', ajaxDeps);
+    const secondSharedCall = fetchSharedFiltersUpdate(form, 'region', ajaxDeps);
 
-    resolveFirst?.({
+    resolveFirstShared?.({
       ok: true,
+      redirected: false,
+      status: 200,
       text: async () => '<div>stale-response</div>',
     });
-    resolveSecond?.({
+    resolveSecondShared?.({
       ok: true,
+      redirected: false,
+      status: 200,
       text: async () => '<div>latest-response</div>',
     });
 
-    await Promise.all([firstCall, secondCall]);
-
-    expect(global.fetch).toHaveBeenCalledTimes(2);
+    await Promise.all([firstSharedCall, secondSharedCall]);
     expect(sharedFiltersSection.innerHTML).toContain('latest-response');
     expect(sharedFiltersSection.innerHTML).not.toContain('stale-response');
-  });
 
-  test('fetchSharedFiltersUpdate skips pagination reset when no analytics filter form exists', async () => {
-    const form = document.createElement('form');
-    form.action = '/';
-    form.method = 'POST';
-    document.body.appendChild(form);
+    const section = document.createElement('div');
+    section.dataset.section = 'summary';
+    document.body.appendChild(section);
 
-    const sharedFiltersSection = document.createElement('div');
-    sharedFiltersSection.dataset.section = 'shared-filters';
-    document.body.appendChild(sharedFiltersSection);
-
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      text: async () => '<div>Shared filters updated</div>',
+    let resolveFirstSection:
+      | ((response: { ok: boolean; redirected: boolean; status: number; text: () => Promise<string> }) => void)
+      | undefined;
+    let resolveSecondSection:
+      | ((response: { ok: boolean; redirected: boolean; status: number; text: () => Promise<string> }) => void)
+      | undefined;
+    let sectionCallIndex = 0;
+    global.fetch = jest.fn().mockImplementation(() => {
+      sectionCallIndex += 1;
+      return new Promise(resolve => {
+        if (sectionCallIndex === 1) {
+          resolveFirstSection = resolve;
+        } else {
+          resolveSecondSection = resolve;
+        }
+      });
     }) as unknown as typeof fetch;
 
-    await fetchSharedFiltersUpdate(form, 'service', ajaxDeps);
-    expect(sharedFiltersSection.innerHTML).toContain('Shared filters updated');
+    const firstSectionCall = fetchSectionUpdate(form, 'summary', ajaxDeps);
+    await Promise.resolve();
+    const secondSectionCall = fetchSectionUpdate(form, 'summary', ajaxDeps);
+
+    resolveFirstSection?.({
+      ok: true,
+      redirected: false,
+      status: 200,
+      text: async () => '<div>stale-section</div>',
+    });
+    resolveSecondSection?.({
+      ok: true,
+      redirected: false,
+      status: 200,
+      text: async () => '<div>latest-section</div>',
+    });
+
+    await Promise.all([firstSectionCall, secondSectionCall]);
+    expect(section.innerHTML).toContain('latest-section');
+    expect(section.innerHTML).not.toContain('stale-section');
   });
 
   test('initAjaxInitialSections skips already-bound and sectionless entries and no-ops without form', async () => {

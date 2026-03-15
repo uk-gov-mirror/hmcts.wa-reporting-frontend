@@ -31,6 +31,16 @@ import {
 
 import { setupAnalyticsDom } from './analyticsTestUtils';
 
+const requestManager = {
+  start: jest.fn(() => ({
+    signal: new AbortController().signal,
+    isCurrent: jest.fn(() => true),
+    finish: jest.fn(),
+  })),
+  abortAll: jest.fn(),
+  bindPagehide: jest.fn(),
+};
+
 jest.mock('govuk-frontend', () => ({ initAll: jest.fn() }));
 jest.mock('@ministryofjustice/frontend', () => ({ initAll: jest.fn() }));
 jest.mock('../../../../main/assets/js/analytics/ajax', () => ({
@@ -61,6 +71,9 @@ jest.mock('../../../../main/assets/js/analytics/tables', () => ({
   initMojTotalsRowPinning: jest.fn(),
   initTableExports: jest.fn(),
 }));
+jest.mock('../../../../main/assets/js/analytics/requestManager', () => ({
+  createSectionRequestManager: jest.fn(() => requestManager),
+}));
 
 import '../../../../main/assets/js/analytics';
 
@@ -89,6 +102,9 @@ describe('analytics bootstrap', () => {
     (initMojServerSorting as jest.Mock).mockClear();
     (initTableExports as jest.Mock).mockClear();
     (initMojTotalsRowPinning as jest.Mock).mockClear();
+    requestManager.start.mockClear();
+    requestManager.abortAll.mockClear();
+    requestManager.bindPagehide.mockClear();
   });
 
   test('runs DOMContentLoaded bootstrap without throwing', async () => {
@@ -110,6 +126,7 @@ describe('analytics bootstrap', () => {
     expect(initAutoSubmitForms).toHaveBeenCalled();
     expect(restoreScrollPosition).toHaveBeenCalled();
     expect(window.Plotly).toBeDefined();
+    expect(requestManager.bindPagehide).toHaveBeenCalled();
   });
 
   test('wraps ajax helpers with dependencies and rebinds behaviors', async () => {
@@ -128,9 +145,11 @@ describe('analytics bootstrap', () => {
     const deps = (fetchSectionUpdate as jest.Mock).mock.calls[0][2] as {
       initAll: typeof initAll;
       initMojAll: typeof initMojAll;
+      requests: { start: jest.Mock };
     };
     expect(deps.initAll).toBe(initAll);
     expect(deps.initMojAll).toBe(initMojAll);
+    expect(deps.requests).toBe(requestManager);
 
     await fetchSortedSectionWithDeps(form, 'assigned', 'section-id');
     expect(fetchSortedSection).toHaveBeenCalledWith(form, 'assigned', 'section-id', expect.any(Object));

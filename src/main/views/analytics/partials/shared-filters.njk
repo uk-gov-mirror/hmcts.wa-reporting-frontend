@@ -2,6 +2,7 @@
 {% from "moj/components/date-picker/macro.njk" import mojDatePicker %}
 {% from "macros/csrf.njk" import csrfProtection %}
 {% from "macros/multi-select.njk" import analyticsMultiSelect %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
 
 {% if showUserFilter is not defined %}
   {% set showUserFilter = false %}
@@ -9,9 +10,11 @@
 {% if showCompletedDateFilters is not defined %}
   {% set showCompletedDateFilters = false %}
 {% endif %}
+{% set sectionError = sectionErrors['shared-filters'] if sectionErrors else null %}
 
 <hr class="govuk-section-break govuk-section-break--m govuk-section-break--visible">
 <p class="govuk-body govuk-!-font-size-24 govuk-!-font-weight-bold">Select filters to apply to dashboard</p>
+{{ analyticsSectionError(sectionError) }}
 <form method="post" data-analytics-filters="true">
   {{ csrfProtection(csrfToken) }}
   {% if snapshotToken %}

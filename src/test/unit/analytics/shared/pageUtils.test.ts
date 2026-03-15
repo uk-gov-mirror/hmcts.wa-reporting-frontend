@@ -471,6 +471,7 @@ describe('pageUtils', () => {
     );
     expect(result.filters).toEqual({ service: ['Civil'] });
     expect(result.filterOptions.services).toEqual(['Civil']);
+    expect(result.hadError).toBe(false);
   });
 
   test('fetchFacetedFilterStateWithFallback returns safe defaults on error', async () => {
@@ -493,6 +494,7 @@ describe('pageUtils', () => {
         workTypes: [],
         users: [],
       },
+      hadError: true,
     });
     expect(logDbError).toHaveBeenCalledWith('Faceted failed', expect.any(Error));
   });

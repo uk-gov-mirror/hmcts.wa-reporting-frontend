@@ -8,6 +8,7 @@ import { UserOverviewSort } from '../shared/userOverviewSort';
 import { lookup, normaliseLabel, toNumber } from '../shared/utils';
 import type { FilterOptionsViewModel, SelectOption } from '../shared/viewModels/filterOptions';
 import { buildPriorityRows } from '../shared/viewModels/priorityRows';
+import type { AnalyticsSectionErrors } from '../shared/viewModels/sectionErrors';
 import { TableHeadCell, buildSortHeadCell } from '../shared/viewModels/sortHead';
 
 import { paginateAssignedTasks, paginateCompletedTasks } from './pagination';
@@ -24,6 +25,13 @@ type UserOverviewViewModel = FilterOptionsViewModel & {
   snapshotId?: number;
   snapshotToken?: string;
   freshnessInsetText: string;
+  sectionErrors: AnalyticsSectionErrors<
+    | 'user-overview-assigned'
+    | 'user-overview-completed'
+    | 'user-overview-completed-by-date'
+    | 'user-overview-completed-by-task-name'
+    | 'shared-filters'
+  >;
   completedFromValue: string;
   completedToValue: string;
   userOptions: SelectOption[];
@@ -345,6 +353,13 @@ export function buildUserOverviewViewModel(params: {
   sort: UserOverviewSort;
   assignedPage: number;
   completedPage: number;
+  sectionErrors: AnalyticsSectionErrors<
+    | 'user-overview-assigned'
+    | 'user-overview-completed'
+    | 'user-overview-completed-by-date'
+    | 'user-overview-completed-by-task-name'
+    | 'shared-filters'
+  >;
 }): UserOverviewViewModel {
   const {
     filters,
@@ -365,6 +380,7 @@ export function buildUserOverviewViewModel(params: {
     sort,
     assignedPage,
     completedPage,
+    sectionErrors,
   } = params;
   const userOptions = filterOptions.users.length > 0 ? filterOptions.users : [{ value: '', text: 'All users' }];
 
@@ -408,6 +424,7 @@ export function buildUserOverviewViewModel(params: {
     snapshotId,
     snapshotToken,
     freshnessInsetText,
+    sectionErrors,
     ...filterViewModel,
     completedFromValue: formatDatePickerValue(filters.completedFrom),
     completedToValue: formatDatePickerValue(filters.completedTo),

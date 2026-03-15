@@ -13,6 +13,11 @@ import { caseWorkerProfileService, courtVenueService, regionService } from '../s
 import { AnalyticsFilters, CompletedMetric, CompletedResponse, Task } from '../shared/types';
 import { formatAnalyticsDateDisplay } from '../shared/formatting';
 import { lookup } from '../shared/utils';
+import {
+  type AnalyticsSectionErrors,
+  FILTERS_UNAVAILABLE_MESSAGE,
+  SECTION_DATA_UNAVAILABLE_MESSAGE,
+} from '../shared/viewModels/sectionErrors';
 
 import { completedService } from './service';
 import { TaskAuditEntry, buildCompletedViewModel } from './viewModel';
@@ -34,6 +39,7 @@ const completedSections = [
 ] as const;
 
 type CompletedAjaxSection = (typeof completedSections)[number];
+type CompletedSectionKey = CompletedAjaxSection | 'shared-filters';
 
 const deferredSections = new Set<CompletedAjaxSection>(completedSections);
 
@@ -81,6 +87,7 @@ export async function buildCompletedPage(
 ): Promise<CompletedPageViewModel> {
   const snapshotContext = await fetchPublishedSnapshotContext(requestedSnapshotId);
   const requestedSection = resolveCompletedSection(ajaxSection);
+  const sectionErrors: AnalyticsSectionErrors<CompletedSectionKey> = {};
   const shouldFetchSummary = shouldFetchSection(requestedSection, 'completed-summary');
   const shouldFetchTimeline = shouldFetchSection(requestedSection, 'completed-timeline');
   const shouldFetchCompletedByName = shouldFetchSection(requestedSection, 'completed-by-name');
@@ -146,6 +153,9 @@ export async function buildCompletedPage(
   ]);
 
   const rangeSummary = settledValueWithError(rangeSummaryResult, 'Failed to fetch completed summary from database');
+  if (rangeSummaryResult.status === 'rejected' || todaySummaryResult.status === 'rejected') {
+    sectionErrors['completed-summary'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   if (rangeSummary) {
     summary = {
       ...summary,
@@ -169,21 +179,33 @@ export async function buildCompletedPage(
   }
 
   timeline = settledArrayWithFallback(timelineResult, 'Failed to fetch completed timeline from database', timeline);
+  if (timelineResult.status === 'rejected') {
+    sectionErrors['completed-timeline'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const processingHandlingTime = settledArrayWithFallback(
     processingHandlingResult,
     'Failed to fetch processing/handling time stats from database',
     fallback.processingHandlingTime
   );
+  if (processingHandlingResult.status === 'rejected') {
+    sectionErrors['completed-processing-handling-time'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   completedByName = settledArrayWithFallback(
     completedByNameResult,
     'Failed to fetch completed by name from database',
     completedByName
   );
+  if (completedByNameResult.status === 'rejected') {
+    sectionErrors['completed-by-name'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const completedRegionLocation = settledValueWithFallback(
     completedRegionLocationResult,
     'Failed to fetch completed region/location data from database',
     fallbackRegionLocation
   );
+  if (completedRegionLocationResult.status === 'rejected') {
+    sectionErrors['completed-by-region-location'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const completedByLocation = completedRegionLocation.byLocation;
   const completedByRegion = completedRegionLocation.byRegion;
   const taskAuditRows = settledArrayWithFallback(
@@ -191,6 +213,9 @@ export async function buildCompletedPage(
     'Failed to fetch completed task audit rows from database',
     []
   );
+  if (taskAuditRowsResult.status === 'rejected') {
+    sectionErrors['completed-task-audit'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const caseWorkerNames = settledValueWithFallback(
     caseWorkerNamesResult,
     'Failed to fetch case worker profiles from database',
@@ -207,7 +232,7 @@ export async function buildCompletedPage(
     {}
   );
   const facetedFilterState = requestedSection
-    ? { filters, filterOptions: emptyOverviewFilterOptions() }
+    ? { filters, filterOptions: emptyOverviewFilterOptions(), hadError: false }
     : await fetchFacetedFilterStateWithFallback({
         errorMessage: 'Failed to fetch completed filter options from database',
         snapshotId: snapshotContext.snapshotId,
@@ -216,6 +241,9 @@ export async function buildCompletedPage(
         changedFilter,
         includeUserFilter: false,
       });
+  if (facetedFilterState.hadError) {
+    sectionErrors['shared-filters'] = { message: FILTERS_UNAVAILABLE_MESSAGE };
+  }
   const resolvedFilters = facetedFilterState.filters;
   const filterOptions = facetedFilterState.filterOptions;
   const allTasks: Task[] = [];
@@ -243,5 +271,6 @@ export async function buildCompletedPage(
     taskAuditCaseId: caseId ?? '',
     selectedMetric,
     freshnessInsetText: snapshotContext.freshnessInsetText,
+    sectionErrors,
   });
 }

@@ -1,39 +1,46 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['completed-by-name'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m">Completed tasks by name</h2>
 <p class="govuk-body">Completed tasks within the selected date range by task name</p>
-{% set completedByNameChartHtml %}
-  <div class="analytics-chart" data-scroll-pan="true" data-chart-config='{{ charts.completedByName }}'></div>
-{% endset %}
-{% set completedByNameTableHtml %}
-  <div class="analytics-tab-panel">
-    {{ csvDownloadButton() }}
-    {{ analyticsTable({
-      attributes: {
-        'data-export-csv': 'true',
-        'data-export-filename': 'completed-by-name.csv',
-        'data-module': 'moj-sortable-table',
-        'data-sticky-totals': 'true'
-      },
-      classes: "analytics-table--compact",
-      hasTotals: true,
-      head: [
-        { text: "Task name", attributes: { 'aria-sort': 'none' } },
-        { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'descending' } },
-        { text: "Within due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "%", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } }
-      ],
-      rows: completedByNameRows.concat([completedByNameTotalsRow])
-    }) }}
-  </div>
-{% endset %}
-{{ govukTabs({
-  id: "completedByNameTabs",
-  items: [
-    { label: "Chart", id: "completedByNameChart", panel: { html: completedByNameChartHtml } },
-    { label: "Data table", id: "completedByNameTable", panel: { html: completedByNameTableHtml } }
-  ]
-}) }}
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  {% set completedByNameChartHtml %}
+    <div class="analytics-chart" data-scroll-pan="true" data-chart-config='{{ charts.completedByName }}'></div>
+  {% endset %}
+  {% set completedByNameTableHtml %}
+    <div class="analytics-tab-panel">
+      {{ csvDownloadButton() }}
+      {{ analyticsTable({
+        attributes: {
+          'data-export-csv': 'true',
+          'data-export-filename': 'completed-by-name.csv',
+          'data-module': 'moj-sortable-table',
+          'data-sticky-totals': 'true'
+        },
+        classes: "analytics-table--compact",
+        hasTotals: true,
+        head: [
+          { text: "Task name", attributes: { 'aria-sort': 'none' } },
+          { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'descending' } },
+          { text: "Within due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "%", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } }
+        ],
+        rows: completedByNameRows.concat([completedByNameTotalsRow])
+      }) }}
+    </div>
+  {% endset %}
+  {{ govukTabs({
+    id: "completedByNameTabs",
+    items: [
+      { label: "Chart", id: "completedByNameChart", panel: { html: completedByNameChartHtml } },
+      { label: "Data table", id: "completedByNameTable", panel: { html: completedByNameTableHtml } }
+    ]
+  }) }}
+{% endif %}

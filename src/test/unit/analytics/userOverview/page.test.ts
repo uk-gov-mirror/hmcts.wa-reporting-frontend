@@ -5,6 +5,10 @@ import {
 import { taskFactsRepository, taskThinRepository } from '../../../../main/modules/analytics/shared/repositories';
 import { caseWorkerProfileService, courtVenueService } from '../../../../main/modules/analytics/shared/services';
 import { getDefaultUserOverviewSort } from '../../../../main/modules/analytics/shared/userOverviewSort';
+import {
+  FILTERS_UNAVAILABLE_MESSAGE,
+  SECTION_DATA_UNAVAILABLE_MESSAGE,
+} from '../../../../main/modules/analytics/shared/viewModels/sectionErrors';
 import { buildUserOverviewPage } from '../../../../main/modules/analytics/userOverview/page';
 import { buildUserOverviewViewModel } from '../../../../main/modules/analytics/userOverview/viewModel';
 
@@ -55,6 +59,7 @@ describe('buildUserOverviewPage', () => {
       workTypes: [],
       users: [],
     },
+    hadError: false,
   });
   const mockDefaultUserOverviewFilterState = () => {
     (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue(buildDefaultUserOverviewFilterState());
@@ -219,6 +224,35 @@ describe('buildUserOverviewPage', () => {
     expect(viewModel).toEqual({ view: 'user-overview-unknown' });
   });
 
+  test('marks shared filters unavailable when user overview filter options fall back', async () => {
+    const sort = getDefaultUserOverviewSort();
+    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
+      filters: { user: ['user-1'] },
+      filterOptions: {
+        services: [],
+        roleCategories: [],
+        regions: [],
+        locations: [],
+        taskNames: [],
+        workTypes: [],
+        users: [],
+      },
+      hadError: true,
+    });
+    (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview-filter-warning' });
+
+    await buildUserOverviewPage({}, sort, 1, 1, 'unknown-section');
+
+    expect(buildUserOverviewViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: { user: ['user-1'] },
+        sectionErrors: {
+          'shared-filters': { message: FILTERS_UNAVAILABLE_MESSAGE },
+        },
+      })
+    );
+  });
+
   test('supports legacy assigned ajax section alias', async () => {
     const sort = getDefaultUserOverviewSort();
     (taskFactsRepository.fetchUserOverviewAssignedSummaryRows as jest.Mock).mockResolvedValue([
@@ -341,6 +375,42 @@ describe('buildUserOverviewPage', () => {
       expect.objectContaining({
         assignedPage: 10,
         assignedTotalResults: 20000,
+      })
+    );
+  });
+
+  test('marks assigned and completed sections unavailable when their main queries fail', async () => {
+    const sort = getDefaultUserOverviewSort();
+    (taskFactsRepository.fetchUserOverviewAssignedSummaryRows as jest.Mock).mockRejectedValue(
+      new Error('assigned-summary-db')
+    );
+    (taskFactsRepository.fetchUserOverviewCompletedTaskCount as jest.Mock).mockRejectedValue(
+      new Error('completed-count-db')
+    );
+    (taskThinRepository.fetchUserOverviewAssignedTaskRows as jest.Mock).mockRejectedValue(new Error('assigned-db'));
+    (taskThinRepository.fetchUserOverviewCompletedTaskRows as jest.Mock).mockRejectedValue(new Error('completed-db'));
+    (taskFactsRepository.fetchUserOverviewCompletedSummaryRows as jest.Mock).mockRejectedValue(
+      new Error('completed-summary-db')
+    );
+    (courtVenueService.fetchCourtVenueDescriptions as jest.Mock).mockResolvedValue({});
+    (caseWorkerProfileService.fetchCaseWorkerProfileNames as jest.Mock).mockResolvedValue({});
+    (buildUserOverviewViewModel as jest.Mock).mockReturnValue({ view: 'user-overview-errors' });
+
+    await buildUserOverviewPage({}, sort, 1, 1, 'user-overview-assigned');
+    await buildUserOverviewPage({}, sort, 1, 1, 'user-overview-completed');
+
+    expect(buildUserOverviewViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionErrors: {
+          'user-overview-assigned': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
+      })
+    );
+    expect(buildUserOverviewViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionErrors: {
+          'user-overview-completed': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
       })
     );
   });

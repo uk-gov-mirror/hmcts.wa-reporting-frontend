@@ -1,46 +1,53 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['open-by-name'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m">Open tasks by name</h2>
 <p class="govuk-body">Open tasks by name and priority</p>
-<div data-open-by-name>
-  <script type="application/json" data-open-by-name-initial>
-    {{ openByNameInitial | dump | safe }}
-  </script>
-  {% set openByNameChartHtml %}
-    <div class="analytics-chart" data-open-by-name-chart></div>
-  {% endset %}
-  {% set openByNameTableHtml %}
-    <div class="analytics-tab-panel" data-open-by-name-table>
-      {{ csvDownloadButton() }}
-      {{ analyticsTable({
-        attributes: {
-          'data-export-csv': 'true',
-          'data-export-filename': 'outstanding-open-by-name.csv',
-          'data-module': 'moj-sortable-table',
-          'data-sticky-totals': 'true'
-        },
-        classes: "analytics-table--compact",
-        hasTotals: true,
-        head: [
-          { text: "Task name", attributes: { 'aria-sort': 'none' } },
-          { text: "Total open", format: "numeric", attributes: { 'aria-sort': 'none' } },
-          { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'descending' } },
-          { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
-          { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
-          { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
-        ],
-        rows: openByNameRows.concat([openByNameTotalsRow])
-      }) }}
-    </div>
-  {% endset %}
-  {{ govukTabs({
-    id: "openByNameTabs",
-    items: [
-      { label: "Chart", id: "openByNameChart", panel: { html: openByNameChartHtml } },
-      { label: "Data table", id: "openByNameTable", panel: { html: openByNameTableHtml } }
-    ]
-  }) }}
-  <p class="govuk-body govuk-!-margin-top-2 govuk-visually-hidden" data-open-by-name-error>Unable to load open tasks right now.</p>
-</div>
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  <div data-open-by-name>
+    <script type="application/json" data-open-by-name-initial>
+      {{ openByNameInitial | dump | safe }}
+    </script>
+    {% set openByNameChartHtml %}
+      <div class="analytics-chart" data-open-by-name-chart></div>
+    {% endset %}
+    {% set openByNameTableHtml %}
+      <div class="analytics-tab-panel" data-open-by-name-table>
+        {{ csvDownloadButton() }}
+        {{ analyticsTable({
+          attributes: {
+            'data-export-csv': 'true',
+            'data-export-filename': 'outstanding-open-by-name.csv',
+            'data-module': 'moj-sortable-table',
+            'data-sticky-totals': 'true'
+          },
+          classes: "analytics-table--compact",
+          hasTotals: true,
+          head: [
+            { text: "Task name", attributes: { 'aria-sort': 'none' } },
+            { text: "Total open", format: "numeric", attributes: { 'aria-sort': 'none' } },
+            { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'descending' } },
+            { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
+            { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
+            { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
+          ],
+          rows: openByNameRows.concat([openByNameTotalsRow])
+        }) }}
+      </div>
+    {% endset %}
+    {{ govukTabs({
+      id: "openByNameTabs",
+      items: [
+        { label: "Chart", id: "openByNameChart", panel: { html: openByNameChartHtml } },
+        { label: "Data table", id: "openByNameTable", panel: { html: openByNameTableHtml } }
+      ]
+    }) }}
+    <p class="govuk-body govuk-!-margin-top-2 govuk-visually-hidden" data-open-by-name-error>Unable to load open tasks right now.</p>
+  </div>
+{% endif %}

@@ -1,6 +1,7 @@
 import { Locator, Page } from '@playwright/test';
 
 import { buildUrl } from '../../../config';
+import { waitForSectionContentOrWarning } from './plotlyChart';
 
 export class AnalyticsOverviewPage {
   constructor(private readonly page: Page) {}
@@ -23,7 +24,15 @@ export class AnalyticsOverviewPage {
     });
   }
 
+  get taskEventsSection(): Locator {
+    return this.page.locator('[data-section="overview-task-events"]');
+  }
+
   get taskEventsCancelledHeader(): Locator {
     return this.page.locator('[data-section="overview-task-events"] th', { hasText: 'Cancelled' });
+  }
+
+  async waitForTaskEventsSectionReady(): Promise<void> {
+    await waitForSectionContentOrWarning(this.taskEventsCancelledHeader, this.taskEventsSection);
   }
 }

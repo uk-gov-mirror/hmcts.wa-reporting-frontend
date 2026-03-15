@@ -1,7 +1,7 @@
 import { Locator, Page } from '@playwright/test';
 
 import { buildUrl } from '../../../config';
-import { waitForPlotlyChart } from './plotlyChart';
+import { waitForPlotlyChartOrWarning } from './plotlyChart';
 
 export class AnalyticsUserOverviewPage {
   constructor(private readonly page: Page) {}
@@ -18,7 +18,11 @@ export class AnalyticsUserOverviewPage {
     return this.page.locator('#completedByDateChart .analytics-chart');
   }
 
-  async waitForCompletedByDateChart(): Promise<void> {
-    await waitForPlotlyChart(this.completedByDateChart);
+  get completedByDateSection(): Locator {
+    return this.page.locator('[data-section="user-overview-completed-by-date"]');
+  }
+
+  async waitForCompletedByDateSectionReady(): Promise<void> {
+    await waitForPlotlyChartOrWarning(this.completedByDateChart, this.completedByDateSection);
   }
 }

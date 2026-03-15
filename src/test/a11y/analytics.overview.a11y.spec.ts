@@ -11,7 +11,7 @@ test.describe('Analytics overview page accessibility', () => {
 
     await expect(analyticsOverviewPage.heading).toBeVisible();
     await expect(analyticsOverviewPage.taskEventsHeading).toBeVisible();
-    await expect(analyticsOverviewPage.taskEventsCancelledHeader).toBeVisible();
+    await analyticsOverviewPage.waitForTaskEventsSectionReady();
     await axeUtils.audit({ exclude: A11Y_EXCLUDED_SELECTORS });
   });
 });

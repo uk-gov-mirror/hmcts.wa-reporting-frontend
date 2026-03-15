@@ -17,6 +17,10 @@ import {
   regionService,
 } from '../../../../main/modules/analytics/shared/services';
 import { AnalyticsFilters } from '../../../../main/modules/analytics/shared/types';
+import {
+  FILTERS_UNAVAILABLE_MESSAGE,
+  SECTION_DATA_UNAVAILABLE_MESSAGE,
+} from '../../../../main/modules/analytics/shared/viewModels/sectionErrors';
 
 jest.mock('../../../../main/modules/analytics/completed/service', () => ({
   completedService: {
@@ -476,7 +480,7 @@ describe('buildCompletedPage', () => {
     );
   });
 
-  test('uses exact completed filter-options fallback message on full page load', async () => {
+  test('marks shared filters unavailable when completed filter options fall back', async () => {
     const fallback = {
       summary: {
         completedToday: 0,
@@ -495,7 +499,7 @@ describe('buildCompletedPage', () => {
     (completedService.buildCompleted as jest.Mock).mockReturnValue(fallback);
     (completedService.buildCompletedByRegionLocation as jest.Mock).mockReturnValue({ byLocation: [], byRegion: [] });
     (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
-      filters: {},
+      filters: { region: ['North'] },
       filterOptions: {
         services: [],
         roleCategories: [],
@@ -505,6 +509,7 @@ describe('buildCompletedPage', () => {
         workTypes: [],
         users: [],
       },
+      hadError: true,
     });
     (buildCompletedViewModel as jest.Mock).mockReturnValue({ view: 'completed-filter-options' });
 
@@ -514,6 +519,14 @@ describe('buildCompletedPage', () => {
       expect.objectContaining({
         errorMessage: 'Failed to fetch completed filter options from database',
         snapshotId,
+      })
+    );
+    expect(buildCompletedViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: { region: ['North'] },
+        sectionErrors: {
+          'shared-filters': { message: FILTERS_UNAVAILABLE_MESSAGE },
+        },
       })
     );
   });
@@ -586,6 +599,48 @@ describe('buildCompletedPage', () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       'Failed to fetch court venue descriptions from database',
       expect.any(Error)
+    );
+    expect(buildCompletedViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionErrors: {
+          'completed-task-audit': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
+      })
+    );
+    expect(buildCompletedViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionErrors: {
+          'completed-summary': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
+      })
+    );
+    expect(buildCompletedViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionErrors: {
+          'completed-timeline': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
+      })
+    );
+    expect(buildCompletedViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionErrors: {
+          'completed-processing-handling-time': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
+      })
+    );
+    expect(buildCompletedViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionErrors: {
+          'completed-by-name': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
+      })
+    );
+    expect(buildCompletedViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionErrors: {
+          'completed-by-region-location': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
+      })
     );
   });
 });

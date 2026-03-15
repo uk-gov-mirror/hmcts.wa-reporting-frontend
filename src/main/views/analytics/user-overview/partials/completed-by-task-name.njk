@@ -1,37 +1,44 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['user-overview-completed-by-task-name'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m">Completed tasks by task name</h2>
 <p class="govuk-body">
   Number of tasks completed by name with average handling time (days) and average days beyond due date (a negative
   value indicates completion within due date)
 </p>
-{% set completedByTaskNameTableHtml %}
-  <div class="analytics-tab-panel">
-    {{ csvDownloadButton() }}
-    {{ analyticsTable({
-      attributes: {
-        'data-export-csv': 'true',
-        'data-export-filename': 'user-overview-completed-by-task-name.csv',
-        'data-module': 'moj-sortable-table',
-        'data-sticky-totals': 'true'
-      },
-      classes: "analytics-table--compact",
-      hasTotals: true,
-      head: [
-        { text: "Task name", attributes: { 'aria-sort': 'none' } },
-        { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'descending' } },
-        { text: "Average handling time", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Average days beyond due date", format: "numeric", attributes: { 'aria-sort': 'none' } }
-      ],
-      rows: completedByTaskNameRows.concat([completedByTaskNameTotalsRow])
-    }) }}
-  </div>
-{% endset %}
-{{ govukTabs({
-  id: "completedByTaskNameTabs",
-  items: [
-    { label: "Data table", id: "completedByTaskNameTable", panel: { html: completedByTaskNameTableHtml } }
-  ]
-}) }}
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  {% set completedByTaskNameTableHtml %}
+    <div class="analytics-tab-panel">
+      {{ csvDownloadButton() }}
+      {{ analyticsTable({
+        attributes: {
+          'data-export-csv': 'true',
+          'data-export-filename': 'user-overview-completed-by-task-name.csv',
+          'data-module': 'moj-sortable-table',
+          'data-sticky-totals': 'true'
+        },
+        classes: "analytics-table--compact",
+        hasTotals: true,
+        head: [
+          { text: "Task name", attributes: { 'aria-sort': 'none' } },
+          { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'descending' } },
+          { text: "Average handling time", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Average days beyond due date", format: "numeric", attributes: { 'aria-sort': 'none' } }
+        ],
+        rows: completedByTaskNameRows.concat([completedByTaskNameTotalsRow])
+      }) }}
+    </div>
+  {% endset %}
+  {{ govukTabs({
+    id: "completedByTaskNameTabs",
+    items: [
+      { label: "Data table", id: "completedByTaskNameTable", panel: { html: completedByTaskNameTableHtml } }
+    ]
+  }) }}
+{% endif %}

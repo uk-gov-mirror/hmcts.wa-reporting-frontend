@@ -12,6 +12,7 @@ import {
 } from '../shared/types';
 import { buildRollingAverage, lookup } from '../shared/utils';
 import { getUserOptions } from '../shared/viewModels/filterOptions';
+import type { AnalyticsSectionErrors } from '../shared/viewModels/sectionErrors';
 import { sumBy } from '../shared/viewModels/totalsRow';
 
 import {
@@ -39,6 +40,15 @@ type CompletedViewModel = ReturnType<typeof buildFilterOptionsViewModel> & {
   snapshotId?: number;
   snapshotToken?: string;
   freshnessInsetText: string;
+  sectionErrors: AnalyticsSectionErrors<
+    | 'completed-summary'
+    | 'completed-timeline'
+    | 'completed-by-name'
+    | 'completed-task-audit'
+    | 'completed-by-region-location'
+    | 'completed-processing-handling-time'
+    | 'shared-filters'
+  >;
   completedFromValue: string;
   completedToValue: string;
   summary: CompletedResponse['summary'];
@@ -339,6 +349,15 @@ export function buildCompletedViewModel(params: {
   taskAuditRows: TaskAuditEntry[];
   taskAuditCaseId: string;
   selectedMetric: CompletedMetric;
+  sectionErrors: AnalyticsSectionErrors<
+    | 'completed-summary'
+    | 'completed-timeline'
+    | 'completed-by-name'
+    | 'completed-task-audit'
+    | 'completed-by-region-location'
+    | 'completed-processing-handling-time'
+    | 'shared-filters'
+  >;
 }): CompletedViewModel {
   const {
     filters,
@@ -355,6 +374,7 @@ export function buildCompletedViewModel(params: {
     taskAuditRows,
     taskAuditCaseId,
     selectedMetric,
+    sectionErrors,
   } = params;
 
   const complianceTodayChart = buildComplianceChart({
@@ -377,6 +397,7 @@ export function buildCompletedViewModel(params: {
     snapshotId,
     snapshotToken,
     freshnessInsetText,
+    sectionErrors,
     ...filterViewModel,
     completedFromValue: formatDatePickerValue(filters.completedFrom),
     completedToValue: formatDatePickerValue(filters.completedTo),

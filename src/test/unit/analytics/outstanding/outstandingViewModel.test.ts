@@ -6,6 +6,7 @@ describe('buildOutstandingViewModel', () => {
     const viewModel = buildOutstandingViewModel({
       filters: {},
       freshnessInsetText: 'Data last refreshed: 17 February 2026 at 10:15 GMT.',
+      sectionErrors: {},
       filterOptions: {
         services: [],
         roleCategories: [],
@@ -81,6 +82,7 @@ describe('buildOutstandingViewModel', () => {
     const viewModel = buildOutstandingViewModel({
       filters: {},
       freshnessInsetText: 'Data last refreshed: 17 February 2026 at 10:15 GMT.',
+      sectionErrors: {},
       filterOptions: {
         services: [],
         roleCategories: [],
@@ -153,6 +155,7 @@ describe('buildOutstandingViewModel', () => {
     const viewModel = buildOutstandingViewModel({
       filters: {},
       freshnessInsetText: 'Data last refreshed: 17 February 2026 at 10:15 GMT.',
+      sectionErrors: {},
       filterOptions: {
         services: [],
         roleCategories: [],
@@ -266,6 +269,7 @@ describe('buildOutstandingViewModel', () => {
     const viewModel = buildOutstandingViewModel({
       filters: {},
       freshnessInsetText: 'Data last refreshed: 17 February 2026 at 10:15 GMT.',
+      sectionErrors: {},
       filterOptions: {
         services: [],
         roleCategories: [],
@@ -337,6 +341,7 @@ describe('buildOutstandingViewModel', () => {
     const viewModel = buildOutstandingViewModel({
       filters: {},
       freshnessInsetText: 'Data last refreshed: 17 February 2026 at 10:15 GMT.',
+      sectionErrors: {},
       filterOptions: {
         services: [],
         roleCategories: [],

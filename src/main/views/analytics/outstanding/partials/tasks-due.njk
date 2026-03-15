@@ -1,38 +1,45 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['tasks-due'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m">Tasks due</h2>
 <p class="govuk-body">Completed and open tasks by due date</p>
-{% set tasksDueChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.tasksDue }}'></div>
-{% endset %}
-{% set tasksDueTableHtml %}
-  <div class="analytics-tab-panel">
-    {{ csvDownloadButton() }}
-    {{ analyticsTable({
-      attributes: {
-        'data-export-csv': 'true',
-        'data-export-filename': 'outstanding-tasks-due.csv',
-        'data-module': 'moj-sortable-table',
-        'data-sticky-totals': 'true'
-      },
-      classes: "analytics-table--compact",
-      hasTotals: true,
-      head: [
-        { text: "Due date", attributes: { 'aria-sort': 'ascending' } },
-        { text: "Total due", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Open", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Completed", format: "numeric", attributes: { 'aria-sort': 'none' } }
-      ],
-      rows: tasksDueRows.concat([tasksDueTotalsRow])
-    }) }}
-  </div>
-{% endset %}
-{{ govukTabs({
-  id: "tasksDueTabs",
-  items: [
-    { label: "Chart", id: "tasksDueChart", panel: { html: tasksDueChartHtml } },
-    { label: "Data table", id: "tasksDueTable", panel: { html: tasksDueTableHtml } }
-  ]
-}) }}
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  {% set tasksDueChartHtml %}
+    <div class="analytics-chart" data-chart-config='{{ charts.tasksDue }}'></div>
+  {% endset %}
+  {% set tasksDueTableHtml %}
+    <div class="analytics-tab-panel">
+      {{ csvDownloadButton() }}
+      {{ analyticsTable({
+        attributes: {
+          'data-export-csv': 'true',
+          'data-export-filename': 'outstanding-tasks-due.csv',
+          'data-module': 'moj-sortable-table',
+          'data-sticky-totals': 'true'
+        },
+        classes: "analytics-table--compact",
+        hasTotals: true,
+        head: [
+          { text: "Due date", attributes: { 'aria-sort': 'ascending' } },
+          { text: "Total due", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Open", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Completed", format: "numeric", attributes: { 'aria-sort': 'none' } }
+        ],
+        rows: tasksDueRows.concat([tasksDueTotalsRow])
+      }) }}
+    </div>
+  {% endset %}
+  {{ govukTabs({
+    id: "tasksDueTabs",
+    items: [
+      { label: "Chart", id: "tasksDueChart", panel: { html: tasksDueChartHtml } },
+      { label: "Data table", id: "tasksDueTable", panel: { html: tasksDueTableHtml } }
+    ]
+  }) }}
+{% endif %}

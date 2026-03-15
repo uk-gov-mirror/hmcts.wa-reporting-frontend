@@ -3,53 +3,60 @@
 {% from "govuk/components/pagination/macro.njk" import govukPagination %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
 {% from "macros/case-link.njk" import caseLink %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['criticalTasks'] if sectionErrors else null %}
 
 <div data-section="outstanding-critical-tasks">
   <h2 class="govuk-heading-m">Critical tasks</h2>
   <p class="govuk-body">Open tasks ordered by the selected ranking</p>
-  {% set criticalTasksTableHtml %}
-    {% set criticalTasksTableRows = [] %}
-    {% for row in criticalTasks %}
-      {% set criticalTasksTableRows = criticalTasksTableRows.concat([[
-        { html: caseLink(row.caseId) },
-        { text: row.caseType },
-        { text: row.location },
-        { text: row.taskName },
-        { text: row.createdDateDisplay, attributes: { 'data-export-value': row.createdDateIso, 'data-sort-value': row.createdDateIso } },
-        { text: row.dueDateDisplay, attributes: { 'data-export-value': row.dueDateIso or '-', 'data-sort-value': row.dueDateIso or '' } },
-        { text: row.priority, attributes: { 'data-sort-value': row.prioritySortValue } },
-        { text: row.agentName }
-      ]]) %}
-    {% endfor %}
-    <div class="analytics-tab-panel analytics-tab-panel--paginated">
-      <div class="analytics-tab-panel__content">
-        {{ csvDownloadButton() }}
-        {{ analyticsTable({
-          attributes: {
-            'data-export-csv': 'true',
-            'data-export-filename': 'outstanding-critical-tasks.csv',
-            'data-module': 'moj-sortable-table',
-            'data-server-sort': 'true',
-            'data-sort-scope': 'criticalTasks',
-            'data-sort-section': 'outstanding-critical-tasks'
-          },
-          classes: "analytics-table--compact analytics-table--wrap-critical-columns",
-          head: criticalTasksHead,
-          boldLastRow: false,
-          rows: criticalTasksTableRows
-        }) }}
-        {% if criticalTasksPagination.show %}
-          <div class="analytics-tab-panel__pagination" data-critical-tasks-pagination="true">
-            {{ govukPagination(criticalTasksPagination.pagination) }}
-          </div>
-        {% endif %}
+  {% if sectionError %}
+    {{ analyticsSectionError(sectionError) }}
+  {% else %}
+    {% set criticalTasksTableHtml %}
+      {% set criticalTasksTableRows = [] %}
+      {% for row in criticalTasks %}
+        {% set criticalTasksTableRows = criticalTasksTableRows.concat([[
+          { html: caseLink(row.caseId) },
+          { text: row.caseType },
+          { text: row.location },
+          { text: row.taskName },
+          { text: row.createdDateDisplay, attributes: { 'data-export-value': row.createdDateIso, 'data-sort-value': row.createdDateIso } },
+          { text: row.dueDateDisplay, attributes: { 'data-export-value': row.dueDateIso or '-', 'data-sort-value': row.dueDateIso or '' } },
+          { text: row.priority, attributes: { 'data-sort-value': row.prioritySortValue } },
+          { text: row.agentName }
+        ]]) %}
+      {% endfor %}
+      <div class="analytics-tab-panel analytics-tab-panel--paginated">
+        <div class="analytics-tab-panel__content">
+          {{ csvDownloadButton() }}
+          {{ analyticsTable({
+            attributes: {
+              'data-export-csv': 'true',
+              'data-export-filename': 'outstanding-critical-tasks.csv',
+              'data-module': 'moj-sortable-table',
+              'data-server-sort': 'true',
+              'data-sort-scope': 'criticalTasks',
+              'data-sort-section': 'outstanding-critical-tasks'
+            },
+            classes: "analytics-table--compact analytics-table--wrap-critical-columns",
+            head: criticalTasksHead,
+            boldLastRow: false,
+            rows: criticalTasksTableRows
+          }) }}
+          {% if criticalTasksPagination.show %}
+            <div class="analytics-tab-panel__pagination" data-critical-tasks-pagination="true">
+              {{ govukPagination(criticalTasksPagination.pagination) }}
+            </div>
+          {% endif %}
+        </div>
       </div>
-    </div>
-  {% endset %}
-  {{ govukTabs({
-    id: "criticalTasksTabs",
-    items: [
-      { label: "Data table", id: "criticalTasksTable", panel: { html: criticalTasksTableHtml } }
-    ]
-  }) }}
+    {% endset %}
+    {{ govukTabs({
+      id: "criticalTasksTabs",
+      items: [
+        { label: "Data table", id: "criticalTasksTable", panel: { html: criticalTasksTableHtml } }
+      ]
+    }) }}
+  {% endif %}
 </div>

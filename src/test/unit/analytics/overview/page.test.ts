@@ -7,6 +7,10 @@ import {
   fetchFacetedFilterStateWithFallback as fetchFilterOptionsWithFallback,
   fetchPublishedSnapshotContext,
 } from '../../../../main/modules/analytics/shared/pageUtils';
+import {
+  FILTERS_UNAVAILABLE_MESSAGE,
+  SECTION_DATA_UNAVAILABLE_MESSAGE,
+} from '../../../../main/modules/analytics/shared/viewModels/sectionErrors';
 
 jest.mock('../../../../main/modules/analytics/overview/service', () => ({
   overviewService: { buildOverview: jest.fn() },
@@ -215,6 +219,9 @@ describe('buildOverviewPage', () => {
     expect(buildOverviewViewModel).toHaveBeenCalledWith(
       expect.objectContaining({
         overview: fallback,
+        sectionErrors: {
+          'overview-service-performance': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
       })
     );
   });
@@ -336,6 +343,9 @@ describe('buildOverviewPage', () => {
       expect.objectContaining({
         taskEventsRows: [],
         taskEventsTotals: { service: 'Total', completed: 0, cancelled: 0, created: 0 },
+        sectionErrors: {
+          'overview-task-events': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
       })
     );
   });
@@ -417,7 +427,7 @@ describe('buildOverviewPage', () => {
     expect(taskEventsByServiceChartService.fetchTaskEventsByService).not.toHaveBeenCalled();
   });
 
-  test('falls back to empty filter options when faceted filter state retrieval rejects', async () => {
+  test('marks shared filters unavailable when faceted filter state falls back', async () => {
     const fallback = {
       serviceRows: [],
       totals: {
@@ -433,14 +443,26 @@ describe('buildOverviewPage', () => {
     };
 
     (overviewService.buildOverview as jest.Mock).mockReturnValue(fallback);
-    (fetchFilterOptionsWithFallback as jest.Mock).mockRejectedValue(new Error('faceted-failed'));
+    (fetchFilterOptionsWithFallback as jest.Mock).mockResolvedValue({
+      filters: { service: ['Civil'] },
+      filterOptions: {
+        services: [],
+        roleCategories: [],
+        regions: [],
+        locations: [],
+        taskNames: [],
+        workTypes: [],
+        users: [],
+      },
+      hadError: true,
+    });
     (buildOverviewViewModel as jest.Mock).mockReturnValue({ view: 'overview-faceted-fallback' });
 
     await buildOverviewPage({}, 'not-a-real-section');
 
     expect(buildOverviewViewModel).toHaveBeenCalledWith(
       expect.objectContaining({
-        filters: {},
+        filters: { service: ['Civil'] },
         filterOptions: {
           services: [],
           roleCategories: [],
@@ -449,6 +471,9 @@ describe('buildOverviewPage', () => {
           taskNames: [],
           workTypes: [],
           users: [],
+        },
+        sectionErrors: {
+          'shared-filters': { message: FILTERS_UNAVAILABLE_MESSAGE },
         },
       })
     );

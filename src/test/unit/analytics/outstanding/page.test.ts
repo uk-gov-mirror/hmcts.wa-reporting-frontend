@@ -24,6 +24,10 @@ import {
   fetchPublishedSnapshotContext,
 } from '../../../../main/modules/analytics/shared/pageUtils';
 import { courtVenueService, regionService } from '../../../../main/modules/analytics/shared/services';
+import {
+  FILTERS_UNAVAILABLE_MESSAGE,
+  SECTION_DATA_UNAVAILABLE_MESSAGE,
+} from '../../../../main/modules/analytics/shared/viewModels/sectionErrors';
 
 jest.mock('../../../../main/modules/analytics/outstanding/service', () => ({
   outstandingService: { buildOutstanding: jest.fn() },
@@ -132,6 +136,7 @@ describe('buildOutstandingPage', () => {
       workTypes: [],
       users: [],
     },
+    hadError: false,
     ...overrides,
   });
   const mockFilterOptionsWithFallback = (overrides = {}) => {
@@ -284,6 +289,9 @@ describe('buildOutstandingPage', () => {
           breakdown: [],
           totals: { name: 'Total', urgent: 0, high: 0, medium: 0, low: 0 },
         }),
+        sectionErrors: {
+          'open-by-name': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
       })
     );
   });
@@ -373,14 +381,17 @@ describe('buildOutstandingPage', () => {
           { location: 'Fallback', region: 'Fallback', open: 1, urgent: 1, high: 0, medium: 0, low: 0 },
         ],
         outstandingByRegion: [{ region: 'Fallback', open: 1, urgent: 1, high: 0, medium: 0, low: 0 }],
+        sectionErrors: {
+          'open-by-region-location': { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
       })
     );
   });
 
-  test('uses exact filter-options fallback message on full page loads', async () => {
+  test('marks shared filters unavailable when filter options fall back', async () => {
     mockOutstandingResponse();
     mockDefaultCharts();
-    mockFilterOptionsWithFallback();
+    mockFilterOptionsWithFallback({ hadError: true, filters: { region: ['North'] } });
     (buildOutstandingViewModel as jest.Mock).mockReturnValue({ view: 'full-page' });
 
     await buildOutstandingPage({}, getDefaultOutstandingSort(), 1, 'not-a-section');
@@ -389,6 +400,14 @@ describe('buildOutstandingPage', () => {
       expect.objectContaining({
         errorMessage: 'Failed to fetch outstanding filter options from database',
         snapshotId,
+      })
+    );
+    expect(buildOutstandingViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filters: { region: ['North'] },
+        sectionErrors: {
+          'shared-filters': { message: FILTERS_UNAVAILABLE_MESSAGE },
+        },
       })
     );
   });
@@ -432,6 +451,13 @@ describe('buildOutstandingPage', () => {
     await buildOutstandingPage({}, getDefaultOutstandingSort(), 1, section);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(expectedMessage, expect.any(Error));
+    expect(buildOutstandingViewModel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionErrors: {
+          [section]: { message: SECTION_DATA_UNAVAILABLE_MESSAGE },
+        },
+      })
+    );
   });
 });
 

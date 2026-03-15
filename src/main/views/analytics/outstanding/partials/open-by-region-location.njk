@@ -1,91 +1,98 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['open-by-region-location'] if sectionErrors else null %}
 
 <div class="govuk-grid-row govuk-!-margin-top-6">
   <div class="govuk-grid-column-full">
     <h2 class="govuk-heading-m govuk-!-margin-bottom-1">Tasks outstanding by region or location</h2>
     <p class="govuk-body">Use the tabs to switch between grouping options.</p>
-    {% set outstandingByRegionHtml %}
-      <div class="analytics-tab-panel">
-        {{ csvDownloadButton() }}
-        {{ analyticsTable({
-          attributes: {
-            'data-export-csv': 'true',
-            'data-export-filename': 'outstanding-by-region.csv',
-            'data-module': 'moj-sortable-table',
-            'data-sticky-totals': 'true'
-          },
-          classes: "analytics-table--compact",
-          hasTotals: true,
-          head: [
-            { text: "Region", attributes: { 'aria-sort': 'ascending' } },
-            { text: "Tasks outstanding", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
-          ],
-          rows: outstandingByRegionRows.concat([outstandingByRegionTotalsRow])
-        }) }}
-      </div>
-    {% endset %}
-    {% set outstandingByLocationHtml %}
-      <div class="analytics-tab-panel">
-        {{ csvDownloadButton() }}
-        {{ analyticsTable({
-          attributes: {
-            'data-export-csv': 'true',
-            'data-export-filename': 'outstanding-by-location.csv',
-            'data-module': 'moj-sortable-table',
-            'data-sticky-totals': 'true'
-          },
-          classes: "analytics-table--compact",
-          hasTotals: true,
-          head: [
-            { text: "Location", attributes: { 'aria-sort': 'ascending' } },
-            { text: "Tasks outstanding", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
-          ],
-          rows: outstandingByLocationRows.concat([outstandingByLocationTotalsRow])
-        }) }}
-      </div>
-    {% endset %}
-    {% set outstandingByRegionLocationHtml %}
-      <div class="analytics-tab-panel">
-        {{ csvDownloadButton() }}
-        {{ analyticsTable({
-          attributes: {
-            'data-export-csv': 'true',
-            'data-export-filename': 'outstanding-by-location-region.csv',
-            'data-module': 'moj-sortable-table',
-            'data-sticky-totals': 'true'
-          },
-          classes: "analytics-table--compact",
-          hasTotals: true,
-          head: [
-            { text: "Region", attributes: { 'aria-sort': 'ascending' } },
-            { text: "Location", attributes: { 'aria-sort': 'none' } },
-            { text: "Tasks outstanding", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
-          ],
-          rows: outstandingByRegionLocationRows.concat([outstandingByRegionLocationTotalsRow])
-        }) }}
-      </div>
-    {% endset %}
-    {{ govukTabs({
-      id: "outstandingByRegionLocationTabs",
-      items: [
-        { label: "By region and location", id: "outstandingByRegionLocation", panel: { html: outstandingByRegionLocationHtml } },
-        { label: "By region", id: "outstandingByRegion", panel: { html: outstandingByRegionHtml } },
-        { label: "By location", id: "outstandingByLocation", panel: { html: outstandingByLocationHtml } }
-      ]
-    }) }}
+    {% if sectionError %}
+      {{ analyticsSectionError(sectionError) }}
+    {% else %}
+      {% set outstandingByRegionHtml %}
+        <div class="analytics-tab-panel">
+          {{ csvDownloadButton() }}
+          {{ analyticsTable({
+            attributes: {
+              'data-export-csv': 'true',
+              'data-export-filename': 'outstanding-by-region.csv',
+              'data-module': 'moj-sortable-table',
+              'data-sticky-totals': 'true'
+            },
+            classes: "analytics-table--compact",
+            hasTotals: true,
+            head: [
+              { text: "Region", attributes: { 'aria-sort': 'ascending' } },
+              { text: "Tasks outstanding", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
+            ],
+            rows: outstandingByRegionRows.concat([outstandingByRegionTotalsRow])
+          }) }}
+        </div>
+      {% endset %}
+      {% set outstandingByLocationHtml %}
+        <div class="analytics-tab-panel">
+          {{ csvDownloadButton() }}
+          {{ analyticsTable({
+            attributes: {
+              'data-export-csv': 'true',
+              'data-export-filename': 'outstanding-by-location.csv',
+              'data-module': 'moj-sortable-table',
+              'data-sticky-totals': 'true'
+            },
+            classes: "analytics-table--compact",
+            hasTotals: true,
+            head: [
+              { text: "Location", attributes: { 'aria-sort': 'ascending' } },
+              { text: "Tasks outstanding", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
+            ],
+            rows: outstandingByLocationRows.concat([outstandingByLocationTotalsRow])
+          }) }}
+        </div>
+      {% endset %}
+      {% set outstandingByRegionLocationHtml %}
+        <div class="analytics-tab-panel">
+          {{ csvDownloadButton() }}
+          {{ analyticsTable({
+            attributes: {
+              'data-export-csv': 'true',
+              'data-export-filename': 'outstanding-by-location-region.csv',
+              'data-module': 'moj-sortable-table',
+              'data-sticky-totals': 'true'
+            },
+            classes: "analytics-table--compact",
+            hasTotals: true,
+            head: [
+              { text: "Region", attributes: { 'aria-sort': 'ascending' } },
+              { text: "Location", attributes: { 'aria-sort': 'none' } },
+              { text: "Tasks outstanding", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
+            ],
+            rows: outstandingByRegionLocationRows.concat([outstandingByRegionLocationTotalsRow])
+          }) }}
+        </div>
+      {% endset %}
+      {{ govukTabs({
+        id: "outstandingByRegionLocationTabs",
+        items: [
+          { label: "By region and location", id: "outstandingByRegionLocation", panel: { html: outstandingByRegionLocationHtml } },
+          { label: "By region", id: "outstandingByRegion", panel: { html: outstandingByRegionHtml } },
+          { label: "By location", id: "outstandingByLocation", panel: { html: outstandingByLocationHtml } }
+        ]
+      }) }}
+    {% endif %}
   </div>
 </div>

@@ -4,6 +4,7 @@ import { initAll } from 'govuk-frontend';
 
 import type { AjaxDeps } from '../../../../main/assets/js/analytics/ajax';
 import { fetchPaginatedSection } from '../../../../main/assets/js/analytics/ajax';
+import { createSectionRequestManager } from '../../../../main/assets/js/analytics/requestManager';
 import {
   getPaginationParamFromHref,
   initCriticalTasksPagination,
@@ -35,6 +36,7 @@ describe('analytics pagination', () => {
       initAll,
       initMojAll,
       rebindSectionBehaviors: jest.fn(),
+      requests: createSectionRequestManager(),
     };
   });
 

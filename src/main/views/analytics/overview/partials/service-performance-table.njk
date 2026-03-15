@@ -1,37 +1,44 @@
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['overview-service-performance'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m govuk-!-margin-top-6">Open and assigned tasks by service</h2>
-{% set openAssignedTableHtml %}
-  <div class="analytics-tab-panel">
-    {{ csvDownloadButton() }}
-    {{ analyticsTable({
-      attributes: {
-        'data-export-csv': 'true',
-        'data-export-filename': 'overview-by-service.csv',
-        'data-module': 'moj-sortable-table',
-        'data-sticky-totals': 'true'
-      },
-      classes: "analytics-table--compact",
-      hasTotals: true,
-      head: [
-        { text: "Service", attributes: { 'aria-sort': 'ascending' } },
-        { text: "Open", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Assigned", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Assigned %", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
-      ],
-      rows: tableRows.concat([totalsRow])
-    }) }}
-  </div>
-{% endset %}
-{{ govukTabs({
-  id: "openAssignedTabs",
-  items: [
-    { label: "Data table", id: "openAssignedTable", panel: { html: openAssignedTableHtml } }
-  ]
-}) }}
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  {% set openAssignedTableHtml %}
+    <div class="analytics-tab-panel">
+      {{ csvDownloadButton() }}
+      {{ analyticsTable({
+        attributes: {
+          'data-export-csv': 'true',
+          'data-export-filename': 'overview-by-service.csv',
+          'data-module': 'moj-sortable-table',
+          'data-sticky-totals': 'true'
+        },
+        classes: "analytics-table--compact",
+        hasTotals: true,
+        head: [
+          { text: "Service", attributes: { 'aria-sort': 'ascending' } },
+          { text: "Open", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Assigned", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Assigned %", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Urgent", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "High", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Medium", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Low", format: "numeric", attributes: { 'aria-sort': 'none' } }
+        ],
+        rows: tableRows.concat([totalsRow])
+      }) }}
+    </div>
+  {% endset %}
+  {{ govukTabs({
+    id: "openAssignedTabs",
+    items: [
+      { label: "Data table", id: "openAssignedTable", panel: { html: openAssignedTableHtml } }
+    ]
+  }) }}
+{% endif %}

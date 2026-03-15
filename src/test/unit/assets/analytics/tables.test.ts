@@ -4,6 +4,7 @@ import { initAll } from 'govuk-frontend';
 
 import type { AjaxDeps } from '../../../../main/assets/js/analytics/ajax';
 import { fetchSortedSection } from '../../../../main/assets/js/analytics/ajax';
+import { createSectionRequestManager } from '../../../../main/assets/js/analytics/requestManager';
 import {
   initMojServerSorting,
   initMojTotalsRowPinning,
@@ -32,6 +33,7 @@ describe('analytics tables', () => {
       initAll,
       initMojAll,
       rebindSectionBehaviors: jest.fn(),
+      requests: createSectionRequestManager(),
     };
   });
 

@@ -14,6 +14,11 @@ import { caseWorkerProfileService, courtVenueService } from '../shared/services'
 import { PrioritySummary } from '../shared/types';
 import { AnalyticsFilters, Task, TaskStatus } from '../shared/types';
 import { UserOverviewSort } from '../shared/userOverviewSort';
+import {
+  type AnalyticsSectionErrors,
+  FILTERS_UNAVAILABLE_MESSAGE,
+  SECTION_DATA_UNAVAILABLE_MESSAGE,
+} from '../shared/viewModels/sectionErrors';
 
 import { USER_OVERVIEW_PAGE_SIZE } from './pagination';
 import { CompletedByDatePoint, UserOverviewMetrics } from './service';
@@ -32,6 +37,7 @@ const userOverviewSections = [
 ] as const;
 
 type UserOverviewAjaxSection = (typeof userOverviewSections)[number];
+type UserOverviewSectionKey = UserOverviewAjaxSection | 'shared-filters';
 
 const deferredSections = new Set<UserOverviewAjaxSection>([
   'user-overview-assigned',
@@ -101,6 +107,7 @@ export async function buildUserOverviewPage(
 ): Promise<UserOverviewPageViewModel> {
   const snapshotContext = await fetchPublishedSnapshotContext(requestedSnapshotId);
   const requestedSection = resolveUserOverviewSection(ajaxSection);
+  const sectionErrors: AnalyticsSectionErrors<UserOverviewSectionKey> = {};
   const shouldFetchAssigned = shouldFetchSection(requestedSection, 'user-overview-assigned');
   const shouldFetchCompleted = shouldFetchSection(requestedSection, 'user-overview-completed');
   const shouldFetchCompletedByDate = shouldFetchSection(requestedSection, 'user-overview-completed-by-date');
@@ -126,6 +133,9 @@ export async function buildUserOverviewPage(
     'Failed to fetch user overview assigned summary from database',
     []
   );
+  if (assignedSummaryResult.status === 'rejected') {
+    sectionErrors['user-overview-assigned'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const assignedSummary = assignedSummaryRows[0];
   const assignedTotalResults = assignedSummary?.total ?? 0;
   const completedTotalResults = settledValueWithFallback(
@@ -133,6 +143,9 @@ export async function buildUserOverviewPage(
     'Failed to fetch user overview completed tasks count from database',
     0
   );
+  if (completedCountResult.status === 'rejected') {
+    sectionErrors['user-overview-completed'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const assignedTotalPages = getCappedTotalPages(assignedTotalResults, USER_OVERVIEW_PAGE_SIZE);
   const completedTotalPages = getCappedTotalPages(completedTotalResults, USER_OVERVIEW_PAGE_SIZE);
   const resolvedAssignedPage = normalisePage(assignedPage, assignedTotalPages);
@@ -201,26 +214,41 @@ export async function buildUserOverviewPage(
     'Failed to fetch user overview assigned tasks from database',
     []
   );
+  if (assignedResult.status === 'rejected') {
+    sectionErrors['user-overview-assigned'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const completedRows = settledArrayWithFallback(
     completedResult,
     'Failed to fetch user overview completed tasks from database',
     []
   );
+  if (completedResult.status === 'rejected') {
+    sectionErrors['user-overview-completed'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const completedByDateRows = settledArrayWithFallback(
     completedByDateResult,
     'Failed to fetch user overview completed by date rows from database',
     []
   );
+  if (completedByDateResult.status === 'rejected') {
+    sectionErrors['user-overview-completed-by-date'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const completedByTaskNameRows = settledArrayWithFallback(
     completedByTaskNameResult,
     'Failed to fetch user overview completed by task name rows from database',
     []
   );
+  if (completedByTaskNameResult.status === 'rejected') {
+    sectionErrors['user-overview-completed-by-task-name'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const completedSummaryRows = settledValueWithFallback(
     completedComplianceResult,
     'Failed to fetch user overview completed summary from database',
     []
   );
+  if (completedComplianceResult.status === 'rejected') {
+    sectionErrors['user-overview-completed'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const locationDescriptions = settledValueWithFallback(
     locationDescriptionsResult,
     'Failed to fetch court venue descriptions from database',
@@ -241,7 +269,7 @@ export async function buildUserOverviewPage(
   }));
   const allTasks = shouldFetchAssigned ? [...assignedTasks, ...completedTasks] : completedTasks;
   const facetedFilterState = requestedSection
-    ? { filters, filterOptions: emptyOverviewFilterOptions() }
+    ? { filters, filterOptions: emptyOverviewFilterOptions(), hadError: false }
     : await fetchFacetedFilterStateWithFallback({
         errorMessage: 'Failed to fetch user overview filter options from database',
         snapshotId: snapshotContext.snapshotId,
@@ -251,6 +279,9 @@ export async function buildUserOverviewPage(
         changedFilter,
         includeUserFilter: true,
       });
+  if (facetedFilterState.hadError) {
+    sectionErrors['shared-filters'] = { message: FILTERS_UNAVAILABLE_MESSAGE };
+  }
   const resolvedFilters = facetedFilterState.filters;
   const filterOptions = facetedFilterState.filterOptions;
 
@@ -347,5 +378,6 @@ export async function buildUserOverviewPage(
     assignedPage: resolvedAssignedPage,
     completedPage: resolvedCompletedPage,
     freshnessInsetText: snapshotContext.freshnessInsetText,
+    sectionErrors,
   });
 }

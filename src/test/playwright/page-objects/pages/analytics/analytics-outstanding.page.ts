@@ -1,7 +1,7 @@
 import { Locator, Page } from '@playwright/test';
 
 import { buildUrl } from '../../../config';
-import { waitForPlotlyChart } from './plotlyChart';
+import { waitForPlotlyChartOrWarning } from './plotlyChart';
 
 export class AnalyticsOutstandingPage {
   constructor(private readonly page: Page) {}
@@ -18,7 +18,11 @@ export class AnalyticsOutstandingPage {
     return this.page.locator('#openTasksChart .analytics-chart');
   }
 
-  async waitForOpenTasksChart(): Promise<void> {
-    await waitForPlotlyChart(this.openTasksChart);
+  get openTasksSection(): Locator {
+    return this.page.locator('[data-section="open-tasks-table"]');
+  }
+
+  async waitForOpenTasksSectionReady(): Promise<void> {
+    await waitForPlotlyChartOrWarning(this.openTasksChart, this.openTasksSection);
   }
 }

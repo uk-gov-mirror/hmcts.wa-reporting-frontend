@@ -10,6 +10,11 @@ import {
 } from '../shared/pageUtils';
 import { courtVenueService, regionService } from '../shared/services';
 import { AnalyticsFilters, PriorityBreakdown, Task } from '../shared/types';
+import {
+  type AnalyticsSectionErrors,
+  FILTERS_UNAVAILABLE_MESSAGE,
+  SECTION_DATA_UNAVAILABLE_MESSAGE,
+} from '../shared/viewModels/sectionErrors';
 
 import { outstandingService } from './service';
 import { buildOutstandingViewModel } from './viewModel';
@@ -45,6 +50,7 @@ const outstandingSections = [
 ] as const;
 
 type OutstandingAjaxSection = (typeof outstandingSections)[number];
+type OutstandingSectionKey = OutstandingAjaxSection | 'shared-filters';
 
 const deferredSections = new Set<OutstandingAjaxSection>(outstandingSections);
 
@@ -65,6 +71,7 @@ export async function buildOutstandingPage(
 ): Promise<OutstandingPageViewModel> {
   const snapshotContext = await fetchPublishedSnapshotContext(requestedSnapshotId);
   const requestedSection = resolveOutstandingSection(ajaxSection);
+  const sectionErrors: AnalyticsSectionErrors<OutstandingSectionKey> = {};
   const shouldFetch = (section: OutstandingAjaxSection): boolean =>
     requestedSection ? requestedSection === section : !deferredSections.has(section);
   const outstanding = outstandingService.buildOutstanding([]);
@@ -125,6 +132,9 @@ export async function buildOutstandingPage(
   ]);
 
   const openByNameValue = settledValueWithError(openByNameResult, 'Failed to fetch open tasks by name');
+  if (openByNameResult.status === 'rejected') {
+    sectionErrors['open-by-name'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   if (openByNameValue) {
     openByNameInitial = {
       breakdown: openByNameValue.breakdown,
@@ -138,19 +148,37 @@ export async function buildOutstandingPage(
     'Failed to fetch open tasks by assignment from database',
     openByCreated
   );
+  if (openResult.status === 'rejected') {
+    sectionErrors['open-tasks-table'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   waitTime = settledArrayWithFallback(waitResult, 'Failed to fetch wait time from database', waitTime);
+  if (waitResult.status === 'rejected') {
+    sectionErrors['wait-time-table'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   dueByDate = settledArrayWithFallback(dueResult, 'Failed to fetch tasks due from database', dueByDate);
+  if (dueResult.status === 'rejected') {
+    sectionErrors['tasks-due'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   priorityByDueDate = settledArrayWithFallback(
     priorityResult,
     'Failed to fetch tasks due by priority from database',
     priorityByDueDate
   );
+  if (priorityResult.status === 'rejected') {
+    sectionErrors['open-tasks-priority'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   summary = settledValueWithFallback(summaryResult, 'Failed to fetch open tasks summary from database', summary);
+  if (summaryResult.status === 'rejected') {
+    sectionErrors['open-tasks-summary'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   const criticalTasksValue = settledValueWithFallback(
     criticalTasksResult,
     'Failed to fetch critical tasks from database',
     { rows: criticalTasks, totalResults: 0, page: criticalTasksPage }
   );
+  if (criticalTasksResult.status === 'rejected') {
+    sectionErrors.criticalTasks = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   criticalTasks = criticalTasksValue.rows;
   const criticalTasksTotalResults = criticalTasksValue.totalResults;
   const resolvedCriticalTasksPage = criticalTasksValue.page;
@@ -159,6 +187,9 @@ export async function buildOutstandingPage(
     regionLocationResult,
     'Failed to fetch open tasks by region/location from database'
   );
+  if (regionLocationResult.status === 'rejected') {
+    sectionErrors['open-by-region-location'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   if (regionLocationValue) {
     outstandingByLocation = regionLocationValue.locationRows;
     outstandingByRegion = regionLocationValue.regionRows;
@@ -172,7 +203,7 @@ export async function buildOutstandingPage(
   const assignmentDonutChart = buildAssignmentDonutChart(summary);
 
   const facetedFilterState = requestedSection
-    ? { filters, filterOptions: emptyOverviewFilterOptions() }
+    ? { filters, filterOptions: emptyOverviewFilterOptions(), hadError: false }
     : await fetchFacetedFilterStateWithFallback({
         errorMessage: 'Failed to fetch outstanding filter options from database',
         snapshotId: snapshotContext.snapshotId,
@@ -181,6 +212,9 @@ export async function buildOutstandingPage(
         changedFilter,
         includeUserFilter: false,
       });
+  if (facetedFilterState.hadError) {
+    sectionErrors['shared-filters'] = { message: FILTERS_UNAVAILABLE_MESSAGE };
+  }
   const resolvedFilters = facetedFilterState.filters;
   const filterOptions = facetedFilterState.filterOptions;
   const needsRegionDescriptions = shouldFetch('open-by-region-location');
@@ -230,6 +264,7 @@ export async function buildOutstandingPage(
     regionDescriptions,
     locationDescriptions,
     freshnessInsetText: snapshotContext.freshnessInsetText,
+    sectionErrors,
   });
 }
 

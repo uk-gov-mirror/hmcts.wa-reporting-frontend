@@ -5,6 +5,7 @@ describe('buildOverviewViewModel', () => {
     const viewModel = buildOverviewViewModel({
       filters: {},
       freshnessInsetText: 'Data last refreshed: 17 February 2026 at 10:15 GMT.',
+      sectionErrors: {},
       overview: {
         serviceRows: [
           {
@@ -61,6 +62,7 @@ describe('buildOverviewViewModel', () => {
     const viewModel = buildOverviewViewModel({
       filters: {},
       freshnessInsetText: 'Data last refreshed: 17 February 2026 at 10:15 GMT.',
+      sectionErrors: {},
       overview: {
         serviceRows: [
           {

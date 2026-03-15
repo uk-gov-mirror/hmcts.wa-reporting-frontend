@@ -1,7 +1,7 @@
 import { Locator, Page } from '@playwright/test';
 
 import { buildUrl } from '../../../config';
-import { waitForPlotlyChart } from './plotlyChart';
+import { waitForPlotlyChartOrWarning } from './plotlyChart';
 
 export class AnalyticsCompletedPage {
   constructor(private readonly page: Page) {}
@@ -22,7 +22,11 @@ export class AnalyticsCompletedPage {
     return this.page.locator('#processingHandlingTimeChart .analytics-chart');
   }
 
-  async waitForProcessingHandlingTimeChart(): Promise<void> {
-    await waitForPlotlyChart(this.processingHandlingTimeChart);
+  get processingHandlingTimeSection(): Locator {
+    return this.page.locator('[data-section="completed-processing-handling-time"]');
+  }
+
+  async waitForProcessingHandlingTimeSectionReady(): Promise<void> {
+    await waitForPlotlyChartOrWarning(this.processingHandlingTimeChart, this.processingHandlingTimeSection);
   }
 }

@@ -1,40 +1,47 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['completed-timeline'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m">Tasks completed</h2>
 <p class="govuk-body">Completed tasks within the selected date range</p>
-{% set timelineChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.timeline }}'></div>
-{% endset %}
-{% set timelineTableHtml %}
-  <div class="analytics-tab-panel">
-    {{ csvDownloadButton() }}
-    {{ analyticsTable({
-      attributes: {
-        'data-export-csv': 'true',
-        'data-export-filename': 'completed-timeline.csv',
-        'data-module': 'moj-sortable-table',
-        'data-sticky-totals': 'true'
-      },
-      classes: "analytics-table--compact",
-      hasTotals: true,
-      head: [
-        { text: "Completed date", attributes: { 'aria-sort': 'ascending' } },
-        { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Within due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "%", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "7-day rolling average tasks", format: "numeric", attributes: { 'aria-sort': 'none' } }
-      ],
-      rows: timelineRows.concat([timelineTotalsRow])
-    }) }}
-  </div>
-{% endset %}
-{{ govukTabs({
-  id: "timelineTabs",
-  items: [
-    { label: "Chart", id: "timelineChart", panel: { html: timelineChartHtml } },
-    { label: "Data table", id: "timelineTable", panel: { html: timelineTableHtml } }
-  ]
-}) }}
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  {% set timelineChartHtml %}
+    <div class="analytics-chart" data-chart-config='{{ charts.timeline }}'></div>
+  {% endset %}
+  {% set timelineTableHtml %}
+    <div class="analytics-tab-panel">
+      {{ csvDownloadButton() }}
+      {{ analyticsTable({
+        attributes: {
+          'data-export-csv': 'true',
+          'data-export-filename': 'completed-timeline.csv',
+          'data-module': 'moj-sortable-table',
+          'data-sticky-totals': 'true'
+        },
+        classes: "analytics-table--compact",
+        hasTotals: true,
+        head: [
+          { text: "Completed date", attributes: { 'aria-sort': 'ascending' } },
+          { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Within due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "%", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "7-day rolling average tasks", format: "numeric", attributes: { 'aria-sort': 'none' } }
+        ],
+        rows: timelineRows.concat([timelineTotalsRow])
+      }) }}
+    </div>
+  {% endset %}
+  {{ govukTabs({
+    id: "timelineTabs",
+    items: [
+      { label: "Chart", id: "timelineChart", panel: { html: timelineChartHtml } },
+      { label: "Data table", id: "timelineTable", panel: { html: timelineTableHtml } }
+    ]
+  }) }}
+{% endif %}

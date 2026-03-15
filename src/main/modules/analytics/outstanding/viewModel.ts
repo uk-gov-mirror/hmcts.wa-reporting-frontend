@@ -17,6 +17,7 @@ import {
 import { lookup } from '../shared/utils';
 import { FilterOptionsViewModel } from '../shared/viewModels/filterOptions';
 import { buildPriorityRows } from '../shared/viewModels/priorityRows';
+import type { AnalyticsSectionErrors } from '../shared/viewModels/sectionErrors';
 import { TableHeadCell, buildSortHeadCell } from '../shared/viewModels/sortHead';
 import { sumBy } from '../shared/viewModels/totalsRow';
 
@@ -79,6 +80,17 @@ export type OutstandingViewModel = FilterOptionsViewModel & {
   snapshotId?: number;
   snapshotToken?: string;
   freshnessInsetText: string;
+  sectionErrors: AnalyticsSectionErrors<
+    | 'open-tasks-summary'
+    | 'open-tasks-table'
+    | 'wait-time-table'
+    | 'tasks-due'
+    | 'open-tasks-priority'
+    | 'open-by-name'
+    | 'open-by-region-location'
+    | 'criticalTasks'
+    | 'shared-filters'
+  >;
   criticalTasksSort: OutstandingSort['criticalTasks'];
   criticalTasksHead: TableHeadCell[];
   criticalTasks: CriticalTaskView[];
@@ -393,6 +405,17 @@ export function buildOutstandingViewModel(params: {
   outstandingByRegion: OutstandingByRegionRow[];
   regionDescriptions: Record<string, string>;
   locationDescriptions: Record<string, string>;
+  sectionErrors: AnalyticsSectionErrors<
+    | 'open-tasks-summary'
+    | 'open-tasks-table'
+    | 'wait-time-table'
+    | 'tasks-due'
+    | 'open-tasks-priority'
+    | 'open-by-name'
+    | 'open-by-region-location'
+    | 'criticalTasks'
+    | 'shared-filters'
+  >;
 }): OutstandingViewModel {
   const {
     filters,
@@ -416,6 +439,7 @@ export function buildOutstandingViewModel(params: {
     outstandingByRegion,
     regionDescriptions,
     locationDescriptions,
+    sectionErrors,
   } = params;
 
   const filterViewModel = buildFilterOptionsViewModel(filterOptions, allTasks);
@@ -437,6 +461,7 @@ export function buildOutstandingViewModel(params: {
     snapshotId,
     snapshotToken,
     freshnessInsetText,
+    sectionErrors,
     ...filterViewModel,
     criticalTasksSort: sort.criticalTasks,
     criticalTasksHead: buildCriticalTasksHead(sort),

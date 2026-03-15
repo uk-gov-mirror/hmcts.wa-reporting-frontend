@@ -5,6 +5,9 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['completed-processing-handling-time'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m">Processing and handling time</h2>
 <p class="govuk-body">Average days for selected metric with lower and upper range (±1 standard deviation)</p>
@@ -89,6 +92,9 @@
     }) }}
   </form>
 
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
   {% set processingHandlingChartHtml %}
     <div class="analytics-tab-panel">
       {{ govukSummaryList({
@@ -103,31 +109,32 @@
   {% set processingHandlingTableHtml %}
     <div class="analytics-tab-panel">
       {{ csvDownloadButton() }}
-    {{ analyticsTable({
-      attributes: {
-        'data-export-csv': 'true',
-        'data-export-filename': 'completed-processing-handling-time.csv',
-        'data-module': 'moj-sortable-table',
-        'data-sticky-totals': 'true'
-      },
-      classes: "analytics-table--compact",
-      hasTotals: true,
-      head: [
-        { text: "Completed date", attributes: { 'aria-sort': 'ascending' } },
-        { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Average selected metric (days)", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Upper range (+1 std)", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Lower range (-1 std)", format: "numeric", attributes: { 'aria-sort': 'none' } }
-      ],
-      rows: processingHandlingRows.concat([processingHandlingTotalsRow])
-    }) }}
-  </div>
-{% endset %}
+      {{ analyticsTable({
+        attributes: {
+          'data-export-csv': 'true',
+          'data-export-filename': 'completed-processing-handling-time.csv',
+          'data-module': 'moj-sortable-table',
+          'data-sticky-totals': 'true'
+        },
+        classes: "analytics-table--compact",
+        hasTotals: true,
+        head: [
+          { text: "Completed date", attributes: { 'aria-sort': 'ascending' } },
+          { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Average selected metric (days)", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Upper range (+1 std)", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Lower range (-1 std)", format: "numeric", attributes: { 'aria-sort': 'none' } }
+        ],
+        rows: processingHandlingRows.concat([processingHandlingTotalsRow])
+      }) }}
+    </div>
+  {% endset %}
 
-{{ govukTabs({
-  id: "processingHandlingTimeTabs",
-  items: [
-    { label: "Chart", id: "processingHandlingTimeChart", panel: { html: processingHandlingChartHtml } },
-    { label: "Data table", id: "processingHandlingTimeTable", panel: { html: processingHandlingTableHtml } }
-  ]
-}) }}
+  {{ govukTabs({
+    id: "processingHandlingTimeTabs",
+    items: [
+      { label: "Chart", id: "processingHandlingTimeChart", panel: { html: processingHandlingChartHtml } },
+      { label: "Data table", id: "processingHandlingTimeTable", panel: { html: processingHandlingTableHtml } }
+    ]
+  }) }}
+{% endif %}

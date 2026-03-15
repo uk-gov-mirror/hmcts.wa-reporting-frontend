@@ -1,40 +1,47 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['open-tasks-table'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m">Open tasks</h2>
 <p class="govuk-body analytics-chart-intro">Open tasks by created date with current assignment state</p>
-{% set openTasksChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.openTasks }}'></div>
-{% endset %}
-{% set openTasksTableHtml %}
-  <div class="analytics-tab-panel">
-    {{ csvDownloadButton() }}
-    {{ analyticsTable({
-      attributes: {
-        'data-export-csv': 'true',
-        'data-export-filename': 'outstanding-open-tasks.csv',
-        'data-module': 'moj-sortable-table',
-        'data-sticky-totals': 'true'
-      },
-      classes: "analytics-table--compact",
-      hasTotals: true,
-      head: [
-        { text: "Created date", attributes: { 'aria-sort': 'ascending' } },
-        { text: "Open tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Assigned tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Assigned %", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Unassigned tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Unassigned %", format: "numeric", attributes: { 'aria-sort': 'none' } }
-      ],
-      rows: openTasksRows.concat([openTasksTotalsRow])
-    }) }}
-  </div>
-{% endset %}
-{{ govukTabs({
-  id: "openTasksTabs",
-  items: [
-    { label: "Chart", id: "openTasksChart", panel: { html: openTasksChartHtml } },
-    { label: "Data table", id: "openTasksTable", panel: { html: openTasksTableHtml } }
-  ]
-}) }}
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  {% set openTasksChartHtml %}
+    <div class="analytics-chart" data-chart-config='{{ charts.openTasks }}'></div>
+  {% endset %}
+  {% set openTasksTableHtml %}
+    <div class="analytics-tab-panel">
+      {{ csvDownloadButton() }}
+      {{ analyticsTable({
+        attributes: {
+          'data-export-csv': 'true',
+          'data-export-filename': 'outstanding-open-tasks.csv',
+          'data-module': 'moj-sortable-table',
+          'data-sticky-totals': 'true'
+        },
+        classes: "analytics-table--compact",
+        hasTotals: true,
+        head: [
+          { text: "Created date", attributes: { 'aria-sort': 'ascending' } },
+          { text: "Open tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Assigned tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Assigned %", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Unassigned tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Unassigned %", format: "numeric", attributes: { 'aria-sort': 'none' } }
+        ],
+        rows: openTasksRows.concat([openTasksTotalsRow])
+      }) }}
+    </div>
+  {% endset %}
+  {{ govukTabs({
+    id: "openTasksTabs",
+    items: [
+      { label: "Chart", id: "openTasksChart", panel: { html: openTasksChartHtml } },
+      { label: "Data table", id: "openTasksTable", panel: { html: openTasksTableHtml } }
+    ]
+  }) }}
+{% endif %}

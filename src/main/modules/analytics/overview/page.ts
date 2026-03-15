@@ -7,6 +7,11 @@ import {
 } from '../shared/pageUtils';
 import { AnalyticsFilters } from '../shared/types';
 import { logDbError } from '../shared/utils';
+import {
+  type AnalyticsSectionErrors,
+  FILTERS_UNAVAILABLE_MESSAGE,
+  SECTION_DATA_UNAVAILABLE_MESSAGE,
+} from '../shared/viewModels/sectionErrors';
 
 import { overviewService } from './service';
 import { buildOverviewViewModel } from './viewModel';
@@ -18,6 +23,7 @@ type OverviewPageViewModel = ReturnType<typeof buildOverviewViewModel>;
 const overviewSections = ['overview-service-performance', 'overview-task-events'] as const;
 
 type OverviewAjaxSection = (typeof overviewSections)[number];
+type OverviewSectionKey = OverviewAjaxSection | 'shared-filters';
 
 const deferredSections = new Set<OverviewAjaxSection>(overviewSections);
 
@@ -43,6 +49,7 @@ export async function buildOverviewPage(
 ): Promise<OverviewPageViewModel> {
   const snapshotContext = await fetchPublishedSnapshotContext(requestedSnapshotId);
   const requestedSection = resolveOverviewSection(ajaxSection);
+  const sectionErrors: AnalyticsSectionErrors<OverviewSectionKey> = {};
   const shouldFetchOverview = shouldFetchSection(requestedSection, 'overview-service-performance');
   const shouldFetchTaskEvents = shouldFetchSection(requestedSection, 'overview-task-events');
   let overview = overviewService.buildOverview([]);
@@ -54,6 +61,7 @@ export async function buildOverviewPage(
       }
     } catch (error) {
       logDbError('Failed to fetch service overview from database', error);
+      sectionErrors['overview-service-performance'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
     }
   }
 
@@ -72,9 +80,14 @@ export async function buildOverviewPage(
       ? taskEventsByServiceChartService.fetchTaskEventsByService(snapshotContext.snapshotId, filters, eventsRange)
       : Promise.resolve(null),
     requestedSection
-      ? Promise.resolve<{ filters: AnalyticsFilters; filterOptions: ReturnType<typeof emptyOverviewFilterOptions> }>({
+      ? Promise.resolve<{
+          filters: AnalyticsFilters;
+          filterOptions: ReturnType<typeof emptyOverviewFilterOptions>;
+          hadError: boolean;
+        }>({
           filters,
           filterOptions: emptyOverviewFilterOptions(),
+          hadError: false,
         })
       : fetchFacetedFilterStateWithFallback({
           errorMessage: 'Failed to fetch overview filter options from database',
@@ -87,15 +100,21 @@ export async function buildOverviewPage(
   ]);
 
   const eventsValue = settledValueWithError(eventsResult, 'Failed to fetch task events by service from database');
+  if (eventsResult.status === 'rejected') {
+    sectionErrors['overview-task-events'] = { message: SECTION_DATA_UNAVAILABLE_MESSAGE };
+  }
   if (eventsValue) {
     taskEventsRows = eventsValue.rows;
     taskEventsTotals = eventsValue.totals;
   }
 
+  if (facetedFiltersResult.status === 'fulfilled' && facetedFiltersResult.value.hadError) {
+    sectionErrors['shared-filters'] = { message: FILTERS_UNAVAILABLE_MESSAGE };
+  }
   const facetedFilterState =
     facetedFiltersResult.status === 'fulfilled'
       ? facetedFiltersResult.value
-      : { filters, filterOptions: emptyOverviewFilterOptions() };
+      : { filters, filterOptions: emptyOverviewFilterOptions(), hadError: false };
   const resolvedFilters = facetedFilterState.filters;
   const filterOptions = facetedFilterState.filterOptions;
 
@@ -110,5 +129,6 @@ export async function buildOverviewPage(
     taskEventsTotals,
     eventsRange,
     freshnessInsetText: snapshotContext.freshnessInsetText,
+    sectionErrors,
   });
 }

@@ -21,6 +21,7 @@ import {
 } from './analytics/forms';
 import { initOpenByName } from './analytics/outstanding/openByName';
 import { initCriticalTasksPagination, initUserOverviewPagination } from './analytics/pagination';
+import { createSectionRequestManager } from './analytics/requestManager';
 import { initMojServerSorting, initMojTotalsRowPinning, initTableExports } from './analytics/tables';
 
 declare global {
@@ -30,6 +31,8 @@ declare global {
 }
 
 window.Plotly = Plotly;
+
+const sectionRequests = createSectionRequestManager();
 
 const rebindSectionBehaviors = (): void => {
   renderCharts();
@@ -50,6 +53,7 @@ const ajaxDeps: AjaxDeps = {
   initAll,
   initMojAll,
   rebindSectionBehaviors,
+  requests: sectionRequests,
 };
 
 const fetchSectionUpdateWithDeps = (form: HTMLFormElement, sectionId: string): Promise<void> =>
@@ -70,6 +74,7 @@ const fetchSharedFiltersWithDeps = (form: HTMLFormElement, changedFilter: string
   fetchSharedFiltersUpdate(form, changedFilter, ajaxDeps);
 
 document.addEventListener('DOMContentLoaded', () => {
+  sectionRequests.bindPagehide();
   renderCharts();
   initTableExports();
   initMojServerSorting(fetchSortedSectionWithDeps);

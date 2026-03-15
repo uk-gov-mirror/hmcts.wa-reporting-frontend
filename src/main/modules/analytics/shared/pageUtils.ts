@@ -166,7 +166,7 @@ export async function fetchFacetedFilterStateWithFallback(params: {
   queryOptions?: AnalyticsQueryOptions;
   changedFilter?: FacetFilterKey;
   includeUserFilter?: boolean;
-}): Promise<{ filters: AnalyticsFilters; filterOptions: FilterOptions }> {
+}): Promise<{ filters: AnalyticsFilters; filterOptions: FilterOptions; hadError: boolean }> {
   const {
     errorMessage,
     snapshotId,
@@ -178,6 +178,7 @@ export async function fetchFacetedFilterStateWithFallback(params: {
   } = params;
   let resolvedFilters = filters;
   let filterOptions = emptyOverviewFilterOptions();
+  let hadError = false;
 
   try {
     const resolved = await filterService.fetchFacetedFilterState(snapshotId, filters, {
@@ -189,10 +190,11 @@ export async function fetchFacetedFilterStateWithFallback(params: {
     resolvedFilters = resolved.filters;
     filterOptions = resolved.filterOptions;
   } catch (error) {
+    hadError = true;
     logDbError(errorMessage, error);
   }
 
-  return { filters: resolvedFilters, filterOptions };
+  return { filters: resolvedFilters, filterOptions, hadError };
 }
 
 export function normaliseDateRange(range?: { from?: Date; to?: Date }): { from?: Date; to?: Date } | undefined {

@@ -61,6 +61,10 @@ Key behaviors:
 - Initial `data-ajax-initial` section refreshes are queued with a concurrency limit of 2 in-flight requests.
 - Analytics section handlers should only fetch data needed for the requested section (for example, `/users` completed section does not fetch completed-by-date rows unless the completed-by-date section is requested).
 - Filter forms with `data-ajax-section` can refresh a single page section without a full reload.
+- A shared client-side request manager tracks all analytics section requests by `data-section` key. A newer request for the same section aborts the older one, and a `pagehide` event aborts all remaining in-flight section requests when the user leaves the page.
+- Ordinary AJAX failures (for example network errors or HTTP 5xx) are handled locally inside the affected section with an inline GOV.UK warning and retry button. They do not trigger a full page submit.
+- Separately from transport failures, analytics page builders can return HTTP 200 with a server-rendered `sectionErrors` warning state when a section-level DB query fails but the page can still render safely. The corresponding partial shows a GOV.UK warning instead of misleading fallback tables or charts.
+- Hard navigation is still allowed for AJAX responses that indicate the user must leave the current page, such as redirects to login or forbidden responses.
 - Shared-filter faceting uses section-scoped AJAX refresh of `data-section="shared-filters"` with `ajaxSection=shared-filters`, `changedFilter`, and `facetRefresh=1`.
 - Faceted shared-filter refresh is triggered when a shared-filter multi-select closes after a selection change.
 - Shared dashboard filter submissions clear any active URL hash (`#...`) before full-page navigation to avoid anchor-based scroll jumps after reload.

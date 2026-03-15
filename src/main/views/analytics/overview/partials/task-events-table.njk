@@ -4,6 +4,9 @@
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['overview-task-events'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m govuk-!-margin-top-6">Created, completed and cancelled tasks by service</h2>
 <form method="post" class="govuk-!-margin-bottom-4" data-analytics-filters="true" data-ajax-section="overview-task-events">
@@ -67,35 +70,39 @@
   }) }}
 </form>
 
-<div class="govuk-grid-row">
-  <div class="govuk-grid-column-one-half">
-    {% set taskEventsTableHtml %}
-      <div class="analytics-tab-panel">
-        {{ csvDownloadButton() }}
-        {{ analyticsTable({
-          attributes: {
-            'data-export-csv': 'true',
-            'data-export-filename': 'overview-task-events.csv',
-            'data-module': 'moj-sortable-table',
-            'data-sticky-totals': 'true'
-          },
-          classes: "analytics-table--compact",
-          hasTotals: true,
-          head: [
-            { text: "Service", attributes: { 'aria-sort': 'ascending' } },
-            { text: "Created", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Completed", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Cancelled", format: "numeric", attributes: { 'aria-sort': 'none' } }
-          ],
-          rows: taskEventsRows.concat([taskEventsTotalsRow])
-        }) }}
-      </div>
-    {% endset %}
-    {{ govukTabs({
-      id: "taskEventsTabs",
-      items: [
-        { label: "Data table", id: "taskEventsTable", panel: { html: taskEventsTableHtml } }
-      ]
-    }) }}
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-one-half">
+      {% set taskEventsTableHtml %}
+        <div class="analytics-tab-panel">
+          {{ csvDownloadButton() }}
+          {{ analyticsTable({
+            attributes: {
+              'data-export-csv': 'true',
+              'data-export-filename': 'overview-task-events.csv',
+              'data-module': 'moj-sortable-table',
+              'data-sticky-totals': 'true'
+            },
+            classes: "analytics-table--compact",
+            hasTotals: true,
+            head: [
+              { text: "Service", attributes: { 'aria-sort': 'ascending' } },
+              { text: "Created", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Completed", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Cancelled", format: "numeric", attributes: { 'aria-sort': 'none' } }
+            ],
+            rows: taskEventsRows.concat([taskEventsTotalsRow])
+          }) }}
+        </div>
+      {% endset %}
+      {{ govukTabs({
+        id: "taskEventsTabs",
+        items: [
+          { label: "Data table", id: "taskEventsTable", panel: { html: taskEventsTableHtml } }
+        ]
+      }) }}
+    </div>
   </div>
-</div>
+{% endif %}

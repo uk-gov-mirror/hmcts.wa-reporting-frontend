@@ -1,40 +1,47 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['user-overview-completed-by-date'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m">Completed tasks by date</h2>
 <p class="govuk-body">Number of tasks completed by date and average handling time</p>
-{% set completedByDateChartHtml %}
-  <div class="analytics-chart" data-chart-config='{{ charts.completedByDate }}'></div>
-{% endset %}
-{% set completedByDateTableHtml %}
-  <div class="analytics-tab-panel">
-    {{ csvDownloadButton() }}
-    {{ analyticsTable({
-      attributes: {
-        'data-export-csv': 'true',
-        'data-export-filename': 'user-overview-completed-by-date.csv',
-        'data-module': 'moj-sortable-table',
-        'data-sticky-totals': 'true'
-      },
-      classes: "analytics-table--compact",
-      hasTotals: true,
-      head: [
-        { text: "Completed date", attributes: { 'aria-sort': 'ascending' } },
-        { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Within due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "%", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-        { text: "Average handling time (days)", format: "numeric", attributes: { 'aria-sort': 'none' } }
-      ],
-      rows: completedByDateRows.concat([completedByDateTotalsRow])
-    }) }}
-  </div>
-{% endset %}
-{{ govukTabs({
-  id: "completedByDateTabs",
-  items: [
-    { label: "Chart", id: "completedByDateChart", panel: { html: completedByDateChartHtml } },
-    { label: "Data table", id: "completedByDateTable", panel: { html: completedByDateTableHtml } }
-  ]
-}) }}
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  {% set completedByDateChartHtml %}
+    <div class="analytics-chart" data-chart-config='{{ charts.completedByDate }}'></div>
+  {% endset %}
+  {% set completedByDateTableHtml %}
+    <div class="analytics-tab-panel">
+      {{ csvDownloadButton() }}
+      {{ analyticsTable({
+        attributes: {
+          'data-export-csv': 'true',
+          'data-export-filename': 'user-overview-completed-by-date.csv',
+          'data-module': 'moj-sortable-table',
+          'data-sticky-totals': 'true'
+        },
+        classes: "analytics-table--compact",
+        hasTotals: true,
+        head: [
+          { text: "Completed date", attributes: { 'aria-sort': 'ascending' } },
+          { text: "Tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Within due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "%", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+          { text: "Average handling time (days)", format: "numeric", attributes: { 'aria-sort': 'none' } }
+        ],
+        rows: completedByDateRows.concat([completedByDateTotalsRow])
+      }) }}
+    </div>
+  {% endset %}
+  {{ govukTabs({
+    id: "completedByDateTabs",
+    items: [
+      { label: "Chart", id: "completedByDateChart", panel: { html: completedByDateChartHtml } },
+      { label: "Data table", id: "completedByDateTable", panel: { html: completedByDateTableHtml } }
+    ]
+  }) }}
+{% endif %}

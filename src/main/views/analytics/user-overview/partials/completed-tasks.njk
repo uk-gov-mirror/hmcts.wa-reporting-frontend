@@ -4,66 +4,73 @@
 {% from "govuk/components/pagination/macro.njk" import govukPagination %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
 {% from "macros/case-link.njk" import caseLink %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['user-overview-completed'] if sectionErrors else null %}
 
 <h2 class="govuk-heading-m">Completed tasks</h2>
-<div class="govuk-grid-row govuk-!-margin-bottom-4" data-user-overview-layout="completed-summary">
-  <div class="govuk-grid-column-one-quarter">
-    {{ govukSummaryList({
-      classes: "analytics-summary-list--wide",
-      rows: completedSummaryRows
-    }) }}
-  </div>
-  <div class="govuk-grid-column-one-quarter">
-    <div class="analytics-chart analytics-chart--small" data-chart-config='{{ charts.completedCompliance }}'></div>
-  </div>
-</div>
-
-{% set completedTableHtml %}
-  {% set completedTableRows = [] %}
-  {% for row in completedRows %}
-    {% set completedTableRows = completedTableRows.concat([[
-      { html: caseLink(row.caseId) },
-      { text: row.createdDate, attributes: { 'data-export-value': row.createdDateRaw, 'data-sort-value': row.createdDateRaw } },
-      { text: row.taskName },
-      { text: row.assignedDate, attributes: { 'data-export-value': row.assignedDateRaw, 'data-sort-value': row.assignedDateRaw } },
-      { text: row.dueDate, attributes: { 'data-export-value': row.dueDateRaw, 'data-sort-value': row.dueDateRaw } },
-      { text: row.completedDate, attributes: { 'data-export-value': row.completedDateRaw, 'data-sort-value': row.completedDateRaw } },
-      { text: row.handlingTimeDays },
-      { text: row.withinDue },
-      { text: row.totalAssignments },
-      { text: row.assigneeName },
-      { text: row.location }
-    ]]) %}
-  {% endfor %}
-  <div class="analytics-tab-panel analytics-tab-panel--paginated">
-    <div class="analytics-tab-panel__content">
-      {{ csvDownloadButton() }}
-      {{ analyticsTable({
-        attributes: {
-          'data-export-csv': 'true',
-          'data-export-filename': 'user-overview-completed.csv',
-          'data-module': 'moj-sortable-table',
-          'data-server-sort': 'true',
-          'data-sort-scope': 'completed'
-        },
-        classes: "analytics-table--compact",
-        head: completedHead,
-        boldLastRow: false,
-        rows: completedTableRows
+{% if sectionError %}
+  {{ analyticsSectionError(sectionError) }}
+{% else %}
+  <div class="govuk-grid-row govuk-!-margin-bottom-4" data-user-overview-layout="completed-summary">
+    <div class="govuk-grid-column-one-quarter">
+      {{ govukSummaryList({
+        classes: "analytics-summary-list--wide",
+        rows: completedSummaryRows
       }) }}
-      {% if completedPagination.show %}
-        <div class="analytics-tab-panel__pagination" data-user-overview-pagination="completed">
-          {{ govukPagination(completedPagination.pagination) }}
-        </div>
-      {% endif %}
+    </div>
+    <div class="govuk-grid-column-one-quarter">
+      <div class="analytics-chart analytics-chart--small" data-chart-config='{{ charts.completedCompliance }}'></div>
     </div>
   </div>
-{% endset %}
-<div data-user-overview-layout="completed-table">
-  {{ govukTabs({
-    id: "completedTasksTabs",
-    items: [
-      { label: "Data table", id: "completedTasksTable", panel: { html: completedTableHtml } }
-    ]
-  }) }}
-</div>
+
+  {% set completedTableHtml %}
+    {% set completedTableRows = [] %}
+    {% for row in completedRows %}
+      {% set completedTableRows = completedTableRows.concat([[
+        { html: caseLink(row.caseId) },
+        { text: row.createdDate, attributes: { 'data-export-value': row.createdDateRaw, 'data-sort-value': row.createdDateRaw } },
+        { text: row.taskName },
+        { text: row.assignedDate, attributes: { 'data-export-value': row.assignedDateRaw, 'data-sort-value': row.assignedDateRaw } },
+        { text: row.dueDate, attributes: { 'data-export-value': row.dueDateRaw, 'data-sort-value': row.dueDateRaw } },
+        { text: row.completedDate, attributes: { 'data-export-value': row.completedDateRaw, 'data-sort-value': row.completedDateRaw } },
+        { text: row.handlingTimeDays },
+        { text: row.withinDue },
+        { text: row.totalAssignments },
+        { text: row.assigneeName },
+        { text: row.location }
+      ]]) %}
+    {% endfor %}
+    <div class="analytics-tab-panel analytics-tab-panel--paginated">
+      <div class="analytics-tab-panel__content">
+        {{ csvDownloadButton() }}
+        {{ analyticsTable({
+          attributes: {
+            'data-export-csv': 'true',
+            'data-export-filename': 'user-overview-completed.csv',
+            'data-module': 'moj-sortable-table',
+            'data-server-sort': 'true',
+            'data-sort-scope': 'completed'
+          },
+          classes: "analytics-table--compact",
+          head: completedHead,
+          boldLastRow: false,
+          rows: completedTableRows
+        }) }}
+        {% if completedPagination.show %}
+          <div class="analytics-tab-panel__pagination" data-user-overview-pagination="completed">
+            {{ govukPagination(completedPagination.pagination) }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% endset %}
+  <div data-user-overview-layout="completed-table">
+    {{ govukTabs({
+      id: "completedTasksTabs",
+      items: [
+        { label: "Data table", id: "completedTasksTable", panel: { html: completedTableHtml } }
+      ]
+    }) }}
+  </div>
+{% endif %}

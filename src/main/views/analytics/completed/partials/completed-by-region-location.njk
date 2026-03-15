@@ -1,91 +1,98 @@
 {% from "govuk/components/tabs/macro.njk" import govukTabs %}
 {% from "macros/analytics-table.njk" import analyticsTable %}
 {% from "macros/csv-download.njk" import csvDownloadButton %}
+{% from "macros/section-error.njk" import analyticsSectionError %}
+
+{% set sectionError = sectionErrors['completed-by-region-location'] if sectionErrors else null %}
 
 <div class="govuk-grid-row govuk-!-margin-top-6">
   <div class="govuk-grid-column-full">
     <h2 class="govuk-heading-m govuk-!-margin-bottom-1">Tasks completed by region or location</h2>
     <p class="govuk-body">Use the tabs to switch between grouping options.</p>
-    {% set completedByRegionHtml %}
-      <div class="analytics-tab-panel">
-        {{ csvDownloadButton() }}
-        {{ analyticsTable({
-          attributes: {
-            'data-export-csv': 'true',
-            'data-export-filename': 'completed-by-region.csv',
-            'data-module': 'moj-sortable-table',
-            'data-sticky-totals': 'true'
-          },
-          classes: "analytics-table--compact",
-          hasTotals: true,
-          head: [
-            { text: "Region", attributes: { 'aria-sort': 'ascending' } },
-            { text: "Completed tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Inside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Handling time", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Processing time", format: "numeric", attributes: { 'aria-sort': 'none' } }
-          ],
-          rows: completedByRegionRows.concat([completedByRegionTotalsRow])
-        }) }}
-      </div>
-    {% endset %}
-    {% set completedByLocationHtml %}
-      <div class="analytics-tab-panel">
-        {{ csvDownloadButton() }}
-        {{ analyticsTable({
-          attributes: {
-            'data-export-csv': 'true',
-            'data-export-filename': 'completed-by-location.csv',
-            'data-module': 'moj-sortable-table',
-            'data-sticky-totals': 'true'
-          },
-          classes: "analytics-table--compact",
-          hasTotals: true,
-          head: [
-            { text: "Location", attributes: { 'aria-sort': 'ascending' } },
-            { text: "Completed tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Inside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Handling time", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Processing time", format: "numeric", attributes: { 'aria-sort': 'none' } }
-          ],
-          rows: completedByLocationRows.concat([completedByLocationTotalsRow])
-        }) }}
-      </div>
-    {% endset %}
-    {% set completedByRegionLocationHtml %}
-      <div class="analytics-tab-panel">
-        {{ csvDownloadButton() }}
-        {{ analyticsTable({
-          attributes: {
-            'data-export-csv': 'true',
-            'data-export-filename': 'completed-by-location-region.csv',
-            'data-module': 'moj-sortable-table',
-            'data-sticky-totals': 'true'
-          },
-          classes: "analytics-table--compact",
-          hasTotals: true,
-          head: [
-            { text: "Region", attributes: { 'aria-sort': 'ascending' } },
-            { text: "Location", attributes: { 'aria-sort': 'none' } },
-            { text: "Completed tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Inside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Handling time", format: "numeric", attributes: { 'aria-sort': 'none' } },
-            { text: "Processing time", format: "numeric", attributes: { 'aria-sort': 'none' } }
-          ],
-          rows: completedByRegionLocationRows.concat([completedByRegionLocationTotalsRow])
-        }) }}
-      </div>
-    {% endset %}
-    {{ govukTabs({
-      id: "completedByRegionLocationTabs",
-      items: [
-        { label: "By region and location", id: "completedByRegionLocation", panel: { html: completedByRegionLocationHtml } },
-        { label: "By region", id: "completedByRegion", panel: { html: completedByRegionHtml } },
-        { label: "By location", id: "completedByLocation", panel: { html: completedByLocationHtml } }
-      ]
-    }) }}
+    {% if sectionError %}
+      {{ analyticsSectionError(sectionError) }}
+    {% else %}
+      {% set completedByRegionHtml %}
+        <div class="analytics-tab-panel">
+          {{ csvDownloadButton() }}
+          {{ analyticsTable({
+            attributes: {
+              'data-export-csv': 'true',
+              'data-export-filename': 'completed-by-region.csv',
+              'data-module': 'moj-sortable-table',
+              'data-sticky-totals': 'true'
+            },
+            classes: "analytics-table--compact",
+            hasTotals: true,
+            head: [
+              { text: "Region", attributes: { 'aria-sort': 'ascending' } },
+              { text: "Completed tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Inside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Handling time", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Processing time", format: "numeric", attributes: { 'aria-sort': 'none' } }
+            ],
+            rows: completedByRegionRows.concat([completedByRegionTotalsRow])
+          }) }}
+        </div>
+      {% endset %}
+      {% set completedByLocationHtml %}
+        <div class="analytics-tab-panel">
+          {{ csvDownloadButton() }}
+          {{ analyticsTable({
+            attributes: {
+              'data-export-csv': 'true',
+              'data-export-filename': 'completed-by-location.csv',
+              'data-module': 'moj-sortable-table',
+              'data-sticky-totals': 'true'
+            },
+            classes: "analytics-table--compact",
+            hasTotals: true,
+            head: [
+              { text: "Location", attributes: { 'aria-sort': 'ascending' } },
+              { text: "Completed tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Inside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Handling time", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Processing time", format: "numeric", attributes: { 'aria-sort': 'none' } }
+            ],
+            rows: completedByLocationRows.concat([completedByLocationTotalsRow])
+          }) }}
+        </div>
+      {% endset %}
+      {% set completedByRegionLocationHtml %}
+        <div class="analytics-tab-panel">
+          {{ csvDownloadButton() }}
+          {{ analyticsTable({
+            attributes: {
+              'data-export-csv': 'true',
+              'data-export-filename': 'completed-by-location-region.csv',
+              'data-module': 'moj-sortable-table',
+              'data-sticky-totals': 'true'
+            },
+            classes: "analytics-table--compact",
+            hasTotals: true,
+            head: [
+              { text: "Region", attributes: { 'aria-sort': 'ascending' } },
+              { text: "Location", attributes: { 'aria-sort': 'none' } },
+              { text: "Completed tasks", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Inside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Outside due date", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Handling time", format: "numeric", attributes: { 'aria-sort': 'none' } },
+              { text: "Processing time", format: "numeric", attributes: { 'aria-sort': 'none' } }
+            ],
+            rows: completedByRegionLocationRows.concat([completedByRegionLocationTotalsRow])
+          }) }}
+        </div>
+      {% endset %}
+      {{ govukTabs({
+        id: "completedByRegionLocationTabs",
+        items: [
+          { label: "By region and location", id: "completedByRegionLocation", panel: { html: completedByRegionLocationHtml } },
+          { label: "By region", id: "completedByRegion", panel: { html: completedByRegionHtml } },
+          { label: "By location", id: "completedByLocation", panel: { html: completedByLocationHtml } }
+        ]
+      }) }}
+    {% endif %}
   </div>
 </div>
