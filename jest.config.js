@@ -6,6 +6,6 @@ module.exports = {
   testEnvironment: 'node',
   collectCoverageFrom: ['<rootDir>/src/main/**/*.ts', '!<rootDir>/src/main/**/*.d.ts'],
   transform: {
-    '^.+\\.ts?$': 'ts-jest',
+    '^.+\\.ts?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.test.json' }],
   },
 };

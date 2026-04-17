@@ -2,24 +2,19 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "module": "commonjs",
+    "module": "nodenext",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "target": "ES2020",
     "strict": true,
     "noImplicitAny": true,
     "noImplicitThis": false,
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "noUnusedLocals": true,
     "experimentalDecorators": true,
     "useUnknownInCatchVariables": false,
     "skipLibCheck": true,
-    "lib": ["es2020", "dom", "dom.iterable"],
-    "baseUrl": "src/main",
-    "paths": {
-      "router/*": ["router/*"],
-      "routes/*": ["routes/*"]
-    }
+    "lib": ["es2020", "dom", "dom.iterable"]
   },
   "include": ["**/*.ts"],
   "exclude": ["**/*.test.ts", "**/*.spec.ts", "**/codecept.conf.ts", "**/__mocks__/*", "src/test/**"]
