@@ -6062,13 +6062,13 @@ __metadata:
   linkType: hard
 
 "@types/pg@npm:*, @types/pg@npm:^8.16.0, @types/pg@npm:^8.20.0":
-  version: 8.20.3
-  resolution: "@types/pg@npm:8.20.3"
+  version: 8.21.0
+  resolution: "@types/pg@npm:8.21.0"
   dependencies:
     "@types/node": "npm:*"
     pg-protocol: "npm:*"
     pg-types: "npm:^2.2.0"
-  checksum: 10/c4a9ccf97b16335ad8a7d592dd29448c6a808cab4b26c9be82a50c638170d80b75bd57e8132e022ad7a8f79cb9e5ebfee1a5cacaac74aa9e941646a7469ba628
+  checksum: 10/496ed159233d7aad007b3a15db04ffe4b9efac1f200b720387bb59c7d7c8e42e9f475f93aedee0c83a5f7ae559c20ee29ad494aa16be248f555197cbc8657cb3
   languageName: node
   linkType: hard
 
